@@ -1,7 +1,8 @@
 package = "exec"
-version = "scm-1"
+version = "0.1.0-1"
 source = {
-    url = "git+https://github.com/mah0x211/lua-exec.git"
+    url = "git+https://github.com/mah0x211/lua-exec.git",
+    tag = "v0.1.0",
 }
 description = {
     summary = "execute a file",
