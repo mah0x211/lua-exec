@@ -1,6 +1,10 @@
 # lua-exec
 
+[![test](https://github.com/mah0x211/lua-exec/actions/workflows/test.yml/badge.svg)](https://github.com/mah0x211/lua-exec/actions/workflows/test.yml)
+[![Coverage Status](https://coveralls.io/repos/github/mah0x211/lua-exec/badge.svg?branch=master)](https://coveralls.io/github/mah0x211/lua-exec?branch=master)
+
 execute a file.
+
 
 ## Installation
 
