@@ -13,6 +13,21 @@ luarocks install exec
 ```
 
 
+## p, err = execl( path [, ...] )
+
+execute the file pointed to the path.
+
+**Parameters**
+
+- `path:string`: absolute path of the file.
+- `...:string`: arguments for the executable.
+
+**Returns**
+
+- `p:exec.process`: process object.
+- `err:string`: error message.
+
+
 ## p, err = execlp( path [, ...])
 
 execute the file pointed to the path.
@@ -150,19 +165,4 @@ send signal to a process and calling the waitpid method.
 **Returns**
 
 same as the return values of the `waitpid` method.
-
-
-## p, err = execl( path [, ...] )
-
-execute the file pointed to the path.
-
-**Parameters**
-
-- `path:string`: absolute path of the file.
-- `...:string`: arguments for the executable.
-
-**Returns**
-
-- `p:exec.process`: process object.
-- `err:string`: error message.
 
