@@ -1,4 +1,5 @@
 require('luacov')
+local error = require('error')
 local concat = table.concat
 local testcase = require('testcase')
 local setenv = require('setenv')
@@ -75,5 +76,30 @@ function testcase.execvp()
     }))
     local res = p.stdout:read('*a')
     assert.equal(res, 'hello execvp\n')
+end
+
+function testcase.waitpid()
+    -- test that returns a result table
+    local p = assert(exec.execl('./example.sh', 'hello'))
+    local pid = p.pid
+    local res, err = p:waitpid()
+    assert.is_nil(err)
+    assert.is_table(res)
+    assert.equal(res, {
+        pid = pid,
+        exit = 0,
+    })
+
+    -- test that return error object
+    res, err = p:waitpid()
+    assert(res == nil, 'no error')
+    local msg = assert(exec.is_error(err))
+    assert.equal({
+        op = msg.op,
+        code = error.errno[msg.code],
+    }, {
+        op = 'waitpid',
+        code = error.errno.ECHILD,
+    })
 end
 
