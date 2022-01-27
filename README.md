@@ -13,7 +13,7 @@ luarocks install exec
 ```
 
 
-## p, err = execl( path [, ...] )
+## p, err = exec.execl( path [, ...] )
 
 execute the file pointed to the path.
 
@@ -25,10 +25,10 @@ execute the file pointed to the path.
 **Returns**
 
 - `p:exec.process`: process object.
-- `err:string`: error message.
+- `err:exec.error`: error object.
 
 
-## p, err = execlp( path [, ...])
+## p, err = exec.execlp( path [, ...])
 
 execute the file pointed to the path.
 
@@ -43,10 +43,10 @@ if the specified `path` does not contain a slash (`/`) character, `path` searche
 **Returns**
 
 - `p:exec.process`: process object.
-- `err:string`: error message.
+- `err:exec.error`: error object.
 
 
-## p, err = execle( path [, envs [, ...]])
+## p, err = exec.execle( path [, envs [, ...]])
 
 execute the file pointed to the path.
 
@@ -59,10 +59,10 @@ execute the file pointed to the path.
 **Returns**
 
 - `p:exec.process`: process object.
-- `err:string`: error message.
+- `err:exec.error`: error object.
 
 
-## p, err = execv( path [, argv [, pwd]] )
+## p, err = exec.execv( path [, argv [, pwd]] )
 
 execute the file pointed to the path.
 
@@ -75,10 +75,10 @@ execute the file pointed to the path.
 **Returns**
 
 - `p:exec.process`: process object.
-- `err:string`: error message.
+- `err:exec.error`: error object.
 
 
-## p, err = execve( path [, argv [, envs [, pwd]]])
+## p, err = exec.execve( path [, argv [, envs [, pwd]]])
 
 execute the file pointed to the path.
 
@@ -92,10 +92,10 @@ execute the file pointed to the path.
 **Returns**
 
 - `p:exec.process`: process object.
-- `err:string`: error message.
+- `err:exec.error`: error object.
 
 
-## p, err = execvp( path [, argv [, pwd]])
+## p, err = exec.execvp( path [, argv [, pwd]])
 
 execute the file pointed to the path.
 
@@ -110,13 +110,32 @@ if the specified `path` does not contain a slash (`/`) character, `path` searche
 **Returns**
 
 - `p:exec.process`: process object.
-- `err:string`: error message.
+- `err:exec.error`: error object.
 
-***
 
-## `exec.process` object
+## Error Handling
 
-the `exec.exec*` function returns an `exec.process` object if the child process is successfully created. this object can be used to communicates with executed program via files and signals.
+above functions return the error object `exec.error` that created by https://github.com/mah0x211/lua-error module.
+
+
+### msg = exec.is_error(err)
+
+if type of `err` is the `exec.error`, extract the error message.
+
+**Parameters**
+
+- `err:error`: an error object.
+
+**Returns**
+
+- `msg:table`: an error message or `nil`.
+
+the value of the `code` field of the error message will be set to the number of last error `errno`.
+
+
+## Process Object
+
+the `exec.exec*` function returns a process object `exec.process` if the child process is successfully created. this object can be used to communicates with executed program via files and signals.
 
 **NOTE:** when this object is GC'd, it sends a `SIGKILL` signal to the associated process if it is still alive.
 
@@ -150,7 +169,7 @@ this method suspends the execution of the calling process until the child proces
   - `coredump:boolean`: `true` if the process produced a core dump.
   - `sigstop:integer`: the number of the signal which caused the process to stop.
   - `sigcont:boolean`: `true` if the process was resumed by delivery of `SIGCONT`.
-- `err:string`: error message.
+- `err:exec.error`: error object.
 
 
 ### res, err = p:kill( signo [, ...] )

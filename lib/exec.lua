@@ -19,11 +19,16 @@
 -- OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 -- THE SOFTWARE.
 --
+local assert = assert
+local error = require('error')
+local error_is = error.is
+local error_cause = error.cause
 local syscall = require('exec.syscall')
 --- @type fun( path:string, argv:nil|string[], envs:nil|table<string, string|number|boolean>, search:nil|boolean, pwd:nil|string )
 local exec = syscall.exec
 
---- @class exec.process
+--- @alias exec.process userdata
+--- @alias error userdata
 
 --- execve
 --- @param path string
@@ -31,7 +36,7 @@ local exec = syscall.exec
 --- @param envs table<string, string|number|boolean>
 --- @param pwd string
 --- @return exec.process
---- @return string err
+--- @return error err
 local function execve(path, argv, envs, pwd)
     return exec(path, argv, envs or {}, nil, pwd)
 end
@@ -41,7 +46,7 @@ end
 --- @param argv string[]
 --- @param pwd string
 --- @return exec.process
---- @return string err
+--- @return error err
 local function execvp(path, argv, pwd)
     return exec(path, argv, nil, true, pwd)
 end
@@ -51,7 +56,7 @@ end
 --- @param argv string[]
 --- @param pwd string
 --- @return exec.process
---- @return string err
+--- @return error err
 local function execv(path, argv, pwd)
     return exec(path, argv, nil, nil, pwd)
 end
@@ -61,7 +66,7 @@ end
 --- @param envs table<string, string|number|boolean>
 --- @vararg string
 --- @return exec.process
---- @return string err
+--- @return error err
 local function execle(path, envs, ...)
     return execve(path, {
         ...,
@@ -72,7 +77,7 @@ end
 --- @param path string
 --- @vararg string
 --- @return exec.process
---- @return string err
+--- @return error err
 local function execlp(path, ...)
     return execvp(path, {
         ...,
@@ -83,14 +88,27 @@ end
 --- @param path string
 --- @vararg string
 --- @return exec.process
---- @return string err
+--- @return error err
 local function execl(path, ...)
     return execv(path, {
         ...,
     })
 end
 
+local EXEC_ERROR = assert(error.type.get('exec.error'))
+
+--- is_error
+--- @param err error
+--- @return table cause
+local function is_error(err)
+    err = error_is(err, EXEC_ERROR)
+    if err then
+        return error_cause(err)
+    end
+end
+
 return {
+    is_error = is_error,
     execl = execl,
     execlp = execlp,
     execle = execle,

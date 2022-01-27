@@ -25,6 +25,7 @@
 #include <lauxlib.h>
 #include <limits.h>
 #include <lua.h>
+#include <lua_error.h>
 #include <lualib.h>
 #include <math.h>
 #include <signal.h>
@@ -91,6 +92,33 @@ static int isinteger(lua_State *L, int idx)
 #endif
 }
 
+#define EXEC_ERROR "exec.error"
+
+static void initerror(lua_State *L)
+{
+    le_loadlib(L, 1);
+    lua_getfield(L, LUA_REGISTRYINDEX, EXEC_ERROR);
+    if (lua_isnil(L, -1)) {
+        // creat new error type
+        lua_pushliteral(L, EXEC_ERROR);
+        le_new_type(L, -1);
+        // save to registry
+        lua_setfield(L, LUA_REGISTRYINDEX, EXEC_ERROR);
+    }
+    lua_pop(L, 1);
+}
+
+static void pusherror(lua_State *L, const char *op, int code)
+{
+    int top = lua_gettop(L);
+    lua_getfield(L, LUA_REGISTRYINDEX, EXEC_ERROR);
+    lua_pushstring(L, strerror(code));
+    lua_pushstring(L, op);
+    lua_pushinteger(L, code);
+    le_new_message(L, top + 2);
+    le_new_typed_error(L, top + 1);
+}
+
 #define EXEC_PROC_MT "exec.process"
 
 static lua_Integer checkflags(lua_State *L, int idx)
@@ -155,7 +183,7 @@ static int waitpid_lua(lua_State *L)
     // pid field does not exists
     if (pid == -1) {
         lua_pushnil(L);
-        lua_pushstring(L, strerror(ECHILD));
+        pusherror(L, "waitpid", ECHILD);
         return 2;
     }
     // remove pid field
@@ -166,7 +194,7 @@ static int waitpid_lua(lua_State *L)
     if (pid == -1) {
         // got error
         lua_pushnil(L);
-        lua_pushstring(L, strerror(errno));
+        pusherror(L, "waitpid", errno);
         return 2;
     } else if (pid == 0) {
         // WNOHANG
@@ -218,14 +246,14 @@ static int kill_lua(lua_State *L)
     // pid field does not exists
     if (pid == -1) {
         lua_pushnil(L);
-        lua_pushstring(L, strerror(ESRCH));
+        pusherror(L, "kill", ESRCH);
         return 2;
     }
 
     if (kill(pid, signo) != 0) {
         // got error
         lua_pushnil(L);
-        lua_pushstring(L, strerror(errno));
+        pusherror(L, "kill", errno);
         return 2;
     }
 
@@ -434,14 +462,14 @@ static int exec(lua_State *L, int search, const char *path, char **argv,
     // create io/pipe
     if (stdpipe_create(fds) == -1) {
         lua_pushnil(L);
-        lua_pushstring(L, strerror(errno));
+        pusherror(L, "exec", errno);
         return 2;
     }
     // create process table
     pidx = new_exec_proc(L, fds);
     if (pidx == -1) {
         lua_pushnil(L);
-        lua_pushstring(L, strerror(errno));
+        pusherror(L, "new_exec_proc", errno);
         stdpipe_close(fds);
         return 2;
     }
@@ -487,7 +515,7 @@ static int exec(lua_State *L, int search, const char *path, char **argv,
     case -1:
         // got error
         lua_pushnil(L);
-        lua_pushstring(L, strerror(errno));
+        pusherror(L, "fork", errno);
         stdpipe_close(fds);
         return 2;
 
@@ -502,16 +530,16 @@ static int exec(lua_State *L, int search, const char *path, char **argv,
 
 static int exec_lua(lua_State *L)
 {
-    const char *path      = luaL_checkstring(L, 1);
+    const char *path      = lauxh_checkstring(L, 1);
     char *default_argv[2] = {
         (char *)path,
         NULL,
     };
+    int search      = lauxh_optboolean(L, 4, 0);
+    const char *pwd = lauxh_optstring(L, 5, NULL);
     lua_State *th   = NULL;
     char **argv     = default_argv;
     char **envp     = NULL;
-    int search      = 0;
-    const char *pwd = NULL;
 
     // manipulate arg length
     lua_settop(L, 5);
@@ -527,7 +555,7 @@ static int exec_lua(lua_State *L)
 
         if (n == -1) {
             lua_pushnil(L);
-            lua_pushstring(L, strerror(ENOMEM));
+            pusherror(L, "exec", ENOMEM);
             return 2;
         } else if (n > _POSIX_ARG_MAX) {
             // too many arguments
@@ -551,7 +579,7 @@ static int exec_lua(lua_State *L)
 
         if (n == -1) {
             lua_pushnil(L);
-            lua_pushstring(L, strerror(ENOMEM));
+            pusherror(L, "exec", ENOMEM);
             return 2;
         }
 
@@ -562,16 +590,6 @@ static int exec_lua(lua_State *L)
         }
         envp[n] = NULL;
     }
-    // search
-    if (!lua_isnoneornil(L, 4)) {
-        luaL_checktype(L, 4, LUA_TBOOLEAN);
-        search = lua_toboolean(L, 4);
-    }
-    // pwd
-    if (!lua_isnoneornil(L, 5)) {
-        luaL_checktype(L, 5, LUA_TSTRING);
-        pwd = lua_tostring(L, 5);
-    }
     // TODO: io redirection
 
     return exec(L, search, path, argv, envp, pwd);
@@ -579,6 +597,8 @@ static int exec_lua(lua_State *L)
 
 LUALIB_API int luaopen_exec_syscall(lua_State *L)
 {
+    initerror(L);
+
     lua_createtable(L, 0, 5);
     // export functions
     lua_pushcfunction(L, exec_lua);
