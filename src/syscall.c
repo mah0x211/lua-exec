@@ -22,14 +22,13 @@
 
 #include <errno.h>
 #include <fcntl.h>
-#include <lauxlib.h>
+#include <lauxhlib.h>
 #include <limits.h>
 #include <lua.h>
 #include <lua_error.h>
 #include <lualib.h>
 #include <math.h>
 #include <signal.h>
-#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/types.h>
@@ -286,54 +285,16 @@ static int gc_lua(lua_State *L)
     return 0;
 }
 
-static int closefp(lua_State *L)
-{
-#if LUA_VERSION_NUM >= 502
-    luaL_Stream *p = luaL_checkudata(L, 1, LUA_FILEHANDLE);
-    int res        = fclose(p->f);
-    p->closef      = NULL;
-    return luaL_fileresult(L, (res == 0), NULL);
-
-#else
-    FILE **p = luaL_checkudata(L, 1, LUA_FILEHANDLE);
-    fclose(*p);
-    *p = NULL;
-    lua_pushboolean(L, 1);
-    return 1;
-
-#endif
-}
-
 static int fd2file(lua_State *L, int fd, const char *mode)
 {
-#if LUA_VERSION_NUM >= 502
-    luaL_Stream *p = lua_newuserdata(L, sizeof(luaL_Stream));
-    FILE **fp      = &p->f;
-    p->closef      = closefp;
-#else
-    FILE **fp = (FILE **)lua_newuserdata(L, sizeof(FILE *));
-#endif
-
     fd = dup(fd);
     if (fd == -1) {
         // failed to duplicate a fd
         return -1;
-    }
-
-    *fp = fdopen(fd, mode);
-    if (*fp == NULL) {
+    } else if (lauxh_tofile(L, fd, mode, NULL) == NULL) {
+        close(fd);
         return -1;
     }
-
-    luaL_getmetatable(L, LUA_FILEHANDLE);
-    lua_setmetatable(L, -2);
-
-#if LUA_VERSION_NUM < 502
-    lua_createtable(L, 0, 1);
-    lua_pushcfunction(L, closefp);
-    lua_setfield(L, -2, "__close");
-    lua_setfenv(L, -2);
-#endif
 
     return 1;
 }
