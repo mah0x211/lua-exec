@@ -1,6 +1,6 @@
 require('luacov')
-local error = require('error')
 local concat = table.concat
+local errno = require('errno')
 local testcase = require('testcase')
 local setenv = require('setenv')
 local exec = require('exec')
@@ -96,10 +96,10 @@ function testcase.waitpid()
     local msg = assert(exec.is_error(err))
     assert.equal({
         op = msg.op,
-        code = error.errno[msg.code],
+        code = errno[msg.code],
     }, {
         op = 'waitpid',
-        code = error.errno.ECHILD,
+        code = errno.ECHILD,
     })
 end
 
