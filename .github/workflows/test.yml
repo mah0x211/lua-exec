@@ -49,22 +49,32 @@ jobs:
       name: Setup Luarocks
       uses: leafo/gh-actions-luarocks@v4
     -
+      name: Install
+      run: |
+        luarocks make EXEC_COVERAGE=1
+    -
       name: Install Tools
       run: |
+        sudo apt install lcov -y
         luarocks install testcase
         luarocks install luacov
         luarocks install setenv
-        luarocks install errno
-    -
-      name: Install
-      run: |
-        luarocks make
     -
       name: Run Test
       run: |
         testcase --coverage ./test/
     -
+      name: Generate coverage reports
+      run: |
+        sh ./covgen.sh
+    -
       name: Upload coverage to Codecov
       uses: codecov/codecov-action@v2
       with:
+        flags: unittests
+    -
+      name: Upload c coverage to Codecov
+      uses: codecov/codecov-action@v2
+      with:
+        files: ./coverage/lcov.info
         flags: unittests

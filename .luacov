@@ -2,5 +2,5 @@ codefromstrings = false
 runreport = true
 deletestats = false
 modules = {
-    ['exec'] = 'lib/exec.lua',
+    ['exec'] = 'exec.lua',
 }

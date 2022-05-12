@@ -12,6 +12,10 @@ execute a file.
 luarocks install exec
 ```
 
+## Error Handling
+
+the following functions return the `error` object created by https://github.com/mah0x211/lua-errno module.
+
 
 ## p, err = exec.execl( path [, ...] )
 
@@ -25,7 +29,7 @@ execute the file pointed to the path.
 **Returns**
 
 - `p:exec.process`: process object.
-- `err:exec.error`: error object.
+- `err:error`: error object.
 
 
 ## p, err = exec.execlp( path [, ...])
@@ -43,7 +47,7 @@ if the specified `path` does not contain a slash (`/`) character, `path` searche
 **Returns**
 
 - `p:exec.process`: process object.
-- `err:exec.error`: error object.
+- `err:error`: error object.
 
 
 ## p, err = exec.execle( path [, envs [, ...]])
@@ -59,7 +63,7 @@ execute the file pointed to the path.
 **Returns**
 
 - `p:exec.process`: process object.
-- `err:exec.error`: error object.
+- `err:error`: error object.
 
 
 ## p, err = exec.execv( path [, argv [, pwd]] )
@@ -75,7 +79,7 @@ execute the file pointed to the path.
 **Returns**
 
 - `p:exec.process`: process object.
-- `err:exec.error`: error object.
+- `err:error`: error object.
 
 
 ## p, err = exec.execve( path [, argv [, envs [, pwd]]])
@@ -92,7 +96,7 @@ execute the file pointed to the path.
 **Returns**
 
 - `p:exec.process`: process object.
-- `err:exec.error`: error object.
+- `err:error`: error object.
 
 
 ## p, err = exec.execvp( path [, argv [, pwd]])
@@ -110,27 +114,9 @@ if the specified `path` does not contain a slash (`/`) character, `path` searche
 **Returns**
 
 - `p:exec.process`: process object.
-- `err:exec.error`: error object.
+- `err:error`: error object.
 
 
-## Error Handling
-
-above functions return the error object `exec.error` that created by https://github.com/mah0x211/lua-error module.
-
-
-### msg = exec.is_error(err)
-
-if type of `err` is the `exec.error`, extract the error message.
-
-**Parameters**
-
-- `err:error`: an error object.
-
-**Returns**
-
-- `msg:table`: an error message or `nil`.
-
-the value of the `code` field of the error message will be set to the number of last error `errno`.
 
 
 ## Process Object
@@ -169,7 +155,7 @@ this method suspends the execution of the calling process until the child proces
   - `coredump:boolean`: `true` if the process produced a core dump.
   - `sigstop:integer`: the number of the signal which caused the process to stop.
   - `sigcont:boolean`: `true` if the process was resumed by delivery of `SIGCONT`.
-- `err:exec.error`: error object.
+- `err:error`: error object.
 
 
 ### res, err = p:kill( signo [, ...] )

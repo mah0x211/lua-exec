@@ -93,13 +93,7 @@ function testcase.waitpid()
     -- test that return error object
     res, err = p:waitpid()
     assert(res == nil, 'no error')
-    local msg = assert(exec.is_error(err))
-    assert.equal({
-        op = msg.op,
-        code = errno[msg.code],
-    }, {
-        op = 'waitpid',
-        code = errno.ECHILD,
-    })
+    assert.equal(err.op, 'waitpid')
+    assert.equal(err.code, errno.ECHILD.code)
 end
 
