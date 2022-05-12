@@ -19,10 +19,6 @@
 -- OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 -- THE SOFTWARE.
 --
-local assert = assert
-local error = require('error')
-local error_is = error.is
-local error_cause = error.cause
 local syscall = require('exec.syscall')
 --- @type fun( path:string, argv:nil|string[], envs:nil|table<string, string|number|boolean>, search:nil|boolean, pwd:nil|string )
 local exec = syscall.exec
@@ -95,20 +91,7 @@ local function execl(path, ...)
     })
 end
 
-local EXEC_ERROR = assert(error.type.get('exec.error'))
-
---- is_error
---- @param err error
---- @return table cause
-local function is_error(err)
-    err = error_is(err, EXEC_ERROR)
-    if err then
-        return error_cause(err)
-    end
-end
-
 return {
-    is_error = is_error,
     execl = execl,
     execlp = execlp,
     execle = execle,

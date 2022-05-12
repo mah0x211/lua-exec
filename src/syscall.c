@@ -22,11 +22,7 @@
 
 #include <errno.h>
 #include <fcntl.h>
-#include <lauxhlib.h>
 #include <limits.h>
-#include <lua.h>
-#include <lua_error.h>
-#include <lualib.h>
 #include <math.h>
 #include <signal.h>
 #include <stdlib.h>
@@ -34,6 +30,8 @@
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <unistd.h>
+// lua
+#include <lua_errno.h>
 
 static void stdpipe_close(int fds[6])
 {
@@ -89,33 +87,6 @@ static int isinteger(lua_State *L, int idx)
     return (lua_type(L, idx) == LUA_TNUMBER && isfinite(lua_tonumber(L, idx)) &&
             lua_tonumber(L, idx) == (lua_Number)lua_tointeger(L, idx));
 #endif
-}
-
-#define EXEC_ERROR "exec.error"
-
-static void initerror(lua_State *L)
-{
-    le_loadlib(L, 1);
-    lua_getfield(L, LUA_REGISTRYINDEX, EXEC_ERROR);
-    if (lua_isnil(L, -1)) {
-        // creat new error type
-        lua_pushliteral(L, EXEC_ERROR);
-        le_new_type(L, -1);
-        // save to registry
-        lua_setfield(L, LUA_REGISTRYINDEX, EXEC_ERROR);
-    }
-    lua_pop(L, 1);
-}
-
-static void pusherror(lua_State *L, const char *op, int code)
-{
-    int top = lua_gettop(L);
-    lua_getfield(L, LUA_REGISTRYINDEX, EXEC_ERROR);
-    lua_pushstring(L, strerror(code));
-    lua_pushstring(L, op);
-    lua_pushinteger(L, code);
-    le_new_message(L, top + 2);
-    le_new_typed_error(L, top + 1);
 }
 
 #define EXEC_PROC_MT "exec.process"
@@ -182,7 +153,8 @@ static int waitpid_lua(lua_State *L)
     // pid field does not exists
     if (pid == -1) {
         lua_pushnil(L);
-        pusherror(L, "waitpid", ECHILD);
+        errno = ECHILD;
+        lua_errno_new(L, errno, "waitpid");
         return 2;
     }
     // remove pid field
@@ -193,7 +165,7 @@ static int waitpid_lua(lua_State *L)
     if (pid == -1) {
         // got error
         lua_pushnil(L);
-        pusherror(L, "waitpid", errno);
+        lua_errno_new(L, errno, "waitpid");
         return 2;
     } else if (pid == 0) {
         // WNOHANG
@@ -245,14 +217,15 @@ static int kill_lua(lua_State *L)
     // pid field does not exists
     if (pid == -1) {
         lua_pushnil(L);
-        pusherror(L, "kill", ESRCH);
+        errno = ESRCH;
+        lua_errno_new(L, errno, "kill");
         return 2;
     }
 
     if (kill(pid, signo) != 0) {
         // got error
         lua_pushnil(L);
-        pusherror(L, "kill", errno);
+        lua_errno_new(L, errno, "kill");
         return 2;
     }
 
@@ -287,7 +260,8 @@ static int gc_lua(lua_State *L)
 
 static int fd2file(lua_State *L, int fd, const char *mode)
 {
-    fd = dup(fd);
+    errno = 0;
+    fd    = dup(fd);
     if (fd == -1) {
         // failed to duplicate a fd
         return -1;
@@ -423,14 +397,14 @@ static int exec(lua_State *L, int search, const char *path, char **argv,
     // create io/pipe
     if (stdpipe_create(fds) == -1) {
         lua_pushnil(L);
-        pusherror(L, "exec", errno);
+        lua_errno_new(L, errno, "stdpipe_create");
         return 2;
     }
     // create process table
     pidx = new_exec_proc(L, fds);
     if (pidx == -1) {
         lua_pushnil(L);
-        pusherror(L, "new_exec_proc", errno);
+        lua_errno_new(L, errno, "new_exec_proc");
         stdpipe_close(fds);
         return 2;
     }
@@ -476,7 +450,7 @@ static int exec(lua_State *L, int search, const char *path, char **argv,
     case -1:
         // got error
         lua_pushnil(L);
-        pusherror(L, "fork", errno);
+        lua_errno_new(L, errno, "fork");
         stdpipe_close(fds);
         return 2;
 
@@ -516,7 +490,8 @@ static int exec_lua(lua_State *L)
 
         if (n == -1) {
             lua_pushnil(L);
-            pusherror(L, "exec", ENOMEM);
+            errno = ENOMEM;
+            lua_errno_new(L, errno, "exec");
             return 2;
         } else if (n > _POSIX_ARG_MAX) {
             // too many arguments
@@ -540,7 +515,8 @@ static int exec_lua(lua_State *L)
 
         if (n == -1) {
             lua_pushnil(L);
-            pusherror(L, "exec", ENOMEM);
+            errno = ENOMEM;
+            lua_errno_new(L, errno, "exec");
             return 2;
         }
 
@@ -558,7 +534,7 @@ static int exec_lua(lua_State *L)
 
 LUALIB_API int luaopen_exec_syscall(lua_State *L)
 {
-    initerror(L);
+    lua_errno_loadlib(L);
 
     lua_createtable(L, 0, 5);
     // export functions
