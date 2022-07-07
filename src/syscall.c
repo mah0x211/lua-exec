@@ -157,21 +157,30 @@ static int waitpid_lua(lua_State *L)
         lua_errno_new(L, errno, "waitpid");
         return 2;
     }
-    // remove pid field
-    lua_pushnil(L);
-    lua_setfield(L, 1, "pid");
 
     pid = waitpid(pid, &rc, opts);
-    if (pid == -1) {
+    if (pid == 0) {
+        // WNOHANG
+        lua_pushnil(L);
+        lua_pushnil(L);
+        lua_pushboolean(L, 1);
+        return 3;
+    } else if (pid == -1) {
+        if (errno == ECHILD) {
+            // remove pid field if process does not exist
+            lua_pushnil(L);
+            lua_setfield(L, 1, "pid");
+        }
+
         // got error
         lua_pushnil(L);
         lua_errno_new(L, errno, "waitpid");
         return 2;
-    } else if (pid == 0) {
-        // WNOHANG
-        lua_pushnil(L);
-        return 1;
     }
+
+    // remove pid field
+    lua_pushnil(L);
+    lua_setfield(L, 1, "pid");
 
     // push result
     lua_createtable(L, 0, 5);

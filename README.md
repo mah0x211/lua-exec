@@ -134,7 +134,7 @@ this object contains the following fields;
 
 it also has the following methods;
 
-### res, err = p:waitpid( ... )
+### res, err, again = p:waitpid( ... )
 
 this method suspends the execution of the calling process until the child process changes its state.
 
@@ -156,7 +156,7 @@ this method suspends the execution of the calling process until the child proces
   - `sigstop:integer`: the number of the signal which caused the process to stop.
   - `sigcont:boolean`: `true` if the process was resumed by delivery of `SIGCONT`.
 - `err:error`: error object.
-
+- `again:boolean`: `true` if the `exec.WNOHANG` option specified and `waitpid` syscall returned `0`.
 
 ### res, err = p:kill( signo [, ...] )
 
