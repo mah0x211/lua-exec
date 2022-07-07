@@ -152,6 +152,7 @@ this method suspends the execution of the calling process until the child proces
   - `pid:integer`: target process-id.
   - `exit:integer`: exit status code if the process terminated normally.
   - `sigterm:integer`: the number of the signal if the process was terminated by signal.
+    - **NOTE:** `exit` field is set to `128` + `the number of the signal`.
   - `coredump:boolean`: `true` if the process produced a core dump.
   - `sigstop:integer`: the number of the signal which caused the process to stop.
   - `sigcont:boolean`: `true` if the process was resumed by delivery of `SIGCONT`.

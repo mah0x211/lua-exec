@@ -200,7 +200,9 @@ static int waitpid_lua(lua_State *L)
     }
     // exit by signal
     if (WIFSIGNALED(rc)) {
-        lauxh_pushint2tbl(L, "sigterm", WTERMSIG(rc));
+        int signo = WTERMSIG(rc);
+        lauxh_pushint2tbl(L, "exit", 128 + signo);
+        lauxh_pushint2tbl(L, "sigterm", signo);
 #ifdef WCOREDUMP
         if (WCOREDUMP(rc)) {
             lauxh_pushbool2tbl(L, "coredump", 1);

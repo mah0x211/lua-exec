@@ -59,6 +59,7 @@ jobs:
         luarocks install testcase
         luarocks install luacov
         luarocks install setenv
+        luarocks install signal
     -
       name: Run Test
       run: |
