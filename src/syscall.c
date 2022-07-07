@@ -178,39 +178,34 @@ static int waitpid_lua(lua_State *L)
         return 2;
     }
 
+    // push result
+    lua_createtable(L, 0, 5);
+    lauxh_pushint2tbl(L, "pid", pid);
+    if (WIFSTOPPED(rc)) {
+        // stopped by signal
+        lauxh_pushint2tbl(L, "sigstop", WSTOPSIG(rc));
+        return 1;
+    } else if (WIFCONTINUED(rc)) {
+        // continued by signal
+        lauxh_pushbool2tbl(L, "sigcont", 1);
+        return 1;
+    }
+
     // remove pid field
     lua_pushnil(L);
     lua_setfield(L, 1, "pid");
-
-    // push result
-    lua_createtable(L, 0, 5);
-    lua_pushinteger(L, pid);
-    lua_setfield(L, -2, "pid");
     // exit status
     if (WIFEXITED(rc)) {
-        lua_pushinteger(L, WEXITSTATUS(rc));
-        lua_setfield(L, -2, "exit");
+        lauxh_pushint2tbl(L, "exit", WEXITSTATUS(rc));
     }
     // exit by signal
     if (WIFSIGNALED(rc)) {
-        lua_pushinteger(L, WTERMSIG(rc));
-        lua_setfield(L, -2, "sigterm");
+        lauxh_pushint2tbl(L, "sigterm", WTERMSIG(rc));
 #ifdef WCOREDUMP
         if (WCOREDUMP(rc)) {
-            lua_pushboolean(L, 1);
-            lua_setfield(L, -2, "coredump");
+            lauxh_pushbool2tbl(L, "coredump", 1);
         }
 #endif
-    }
-    // stopped by signal
-    if (WIFSTOPPED(rc)) {
-        lua_pushinteger(L, WSTOPSIG(rc));
-        lua_setfield(L, -2, "sigstop");
-    }
-    // continued by signal
-    if (WIFCONTINUED(rc)) {
-        lua_pushboolean(L, 1);
-        lua_setfield(L, -2, "sigcont");
     }
 
     return 1;
