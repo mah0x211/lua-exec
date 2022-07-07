@@ -79,11 +79,19 @@ function testcase.execvp()
 end
 
 function testcase.waitpid()
-    -- test that returns a result table
     local p = assert(exec.execl('./example.sh', 'hello'))
     local pid = p.pid
-    local res, err = p:waitpid()
+
+    -- test that returns immediately with again=true
+    local res, err, again = p:waitpid(exec.WNOHANG)
+    assert.is_nil(res)
     assert.is_nil(err)
+    assert.is_true(again)
+
+    -- test that return result value
+    res, err, again = p:waitpid()
+    assert.is_nil(err)
+    assert.is_nil(again)
     assert.is_table(res)
     assert.equal(res, {
         pid = pid,
