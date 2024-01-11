@@ -222,24 +222,26 @@ static int kill_lua(lua_State *L)
     pid = getfield_pid(L, 1);
     // pid field does not exists
     if (pid == -1) {
-        lua_pushnil(L);
         errno = ESRCH;
-        lua_errno_new(L, errno, "kill");
-        return 2;
+        lua_pushboolean(L, 0);
+        return 1;
     }
 
-    if (kill(pid, signo) != 0) {
-        // got error
+    if (kill(pid, signo) == 0) {
+        lua_pushboolean(L, 1);
+        return 1;
+    } else if (errno == ESRCH) {
+        // remove pid field if process does not exist
         lua_pushnil(L);
-        lua_errno_new(L, errno, "kill");
-        return 2;
+        lua_setfield(L, 1, "pid");
+        lua_pushboolean(L, 0);
+        return 1;
     }
 
-    if (lua_gettop(L) > 1) {
-        lua_remove(L, 2);
-    }
-
-    return waitpid_lua(L);
+    // got error
+    lua_pushboolean(L, 0);
+    lua_errno_new(L, errno, "kill");
+    return 2;
 }
 
 static int tostring_lua(lua_State *L)
@@ -287,13 +289,13 @@ static int new_exec_proc(lua_State *L, int fd[3])
     lua_createtable(L, 0, 4);
 
 #define setfile(fd, name, mode)                                                \
- do {                                                                          \
-  if (fd2file(L, fd, mode) == -1) {                                            \
-   lua_settop(L, top);                                                         \
-   return -1;                                                                  \
-  }                                                                            \
-  lua_setfield(L, -2, name);                                                   \
- } while (0)
+    do {                                                                       \
+        if (fd2file(L, fd, mode) == -1) {                                      \
+            lua_settop(L, top);                                                \
+            return -1;                                                         \
+        }                                                                      \
+        lua_setfield(L, -2, name);                                             \
+    } while (0)
 
     setfile(fd[0], "stdin", "w");
     setfile(fd[1], "stdout", "r");
