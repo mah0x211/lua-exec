@@ -70,12 +70,6 @@ jobs:
         sh ./covgen.sh
     -
       name: Upload coverage to Codecov
-      uses: codecov/codecov-action@v2
+      uses: codecov/codecov-action@v3
       with:
-        flags: unittests
-    -
-      name: Upload c coverage to Codecov
-      uses: codecov/codecov-action@v2
-      with:
-        files: ./coverage/lcov.info
         flags: unittests
