@@ -1,7 +1,8 @@
 require('luacov')
 local concat = table.concat
-local errno = require('errno')
 local testcase = require('testcase')
+local assert = require('assert')
+local errno = require('errno')
 local setenv = require('setenv')
 local signal = require('signal')
 local exec = require('exec')
@@ -118,16 +119,17 @@ function testcase.kill()
     local pid = p.pid
 
     -- test that EINVAL error
-    local res, err, again = p:kill(4096)
-    assert.is_nil(res)
-    assert.is_nil(again)
+    local ok, err = p:kill(4096)
+    assert.is_false(ok)
     assert.equal(err.type, errno.EINVAL)
 
     -- test that exit by sigterm
-    res, err, again = p:kill(signal.SIGTERM)
+    ok, err = p:kill(signal.SIGTERM)
+    assert.is_true(ok)
     assert.is_nil(err)
-    assert.is_nil(again)
-    assert.is_table(res)
+
+    -- test that return again=true
+    local res = assert(p:waitpid())
     assert.equal(res, {
         pid = pid,
         exit = 128 + signal.SIGTERM,
@@ -135,8 +137,8 @@ function testcase.kill()
     })
 
     -- test that ESRCH error
-    res, err = p:kill()
-    assert.is_nil(res)
-    assert.equal(err.type, errno.ESRCH)
+    ok, err = p:kill()
+    assert.is_false(ok)
+    assert.is_nil(err)
 end
 

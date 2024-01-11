@@ -117,8 +117,6 @@ if the specified `path` does not contain a slash (`/`) character, `path` searche
 - `err:error`: error object.
 
 
-
-
 ## Process Object
 
 the `exec.exec*` function returns a process object `exec.process` if the child process is successfully created. this object can be used to communicates with executed program via files and signals.
@@ -134,7 +132,8 @@ this object contains the following fields;
 
 it also has the following methods;
 
-### res, err, again = p:waitpid( ... )
+
+## res, err, again = p:waitpid( ... )
 
 this method suspends the execution of the calling process until the child process changes its state.
 
@@ -159,16 +158,18 @@ this method suspends the execution of the calling process until the child proces
 - `err:error`: error object.
 - `again:boolean`: `true` if the `exec.WNOHANG` option specified and `waitpid` syscall returned `0`.
 
-### res, err = p:kill( signo [, ...] )
+
+## ok, err = p:kill( [signo] )
 
 send signal to a process and calling the waitpid method.
 
 **Parameters**
 
-- `signo:integer`: the signal number.
-- `...:integer`: options for `waitpid` method.
+- `signo:integer`: the signal number. (default: `SIGTERM`)
 
 **Returns**
 
-same as the return values of the `waitpid` method.
+- `ok:boolean`: `true` on success.
+- `err:any`: `nil` and `ok` is `false` on process not found, or error object on failure.
+
 
