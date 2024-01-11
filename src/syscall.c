@@ -91,25 +91,6 @@ static int isinteger(lua_State *L, int idx)
 
 #define EXEC_PROC_MT "exec.process"
 
-static lua_Integer checkflags(lua_State *L, int idx)
-{
-    const int argc  = lua_gettop(L);
-    lua_Integer flg = 0;
-
-    for (; idx <= argc; idx++) {
-        if (!lua_isnoneornil(L, idx)) {
-            if (!isinteger(L, idx)) {
-                const char *msg = lua_pushfstring(L, "integer expected, got %s",
-                                                  luaL_typename(L, idx));
-                return luaL_argerror(L, idx, msg);
-            }
-            flg |= lua_tointeger(L, idx);
-        }
-    }
-
-    return flg;
-}
-
 static pid_t getfield_pid(lua_State *L, int idx)
 {
     lua_getfield(L, idx, "pid");
@@ -142,9 +123,41 @@ static void checkmetatable(lua_State *L, int idx)
     }
 }
 
+static inline int checkoptions(lua_State *L, int index)
+{
+    static const char *const options[] = {
+        "nohang",
+        "untraced",
+        "continued",
+        NULL,
+    };
+    int top  = lua_gettop(L);
+    int opts = 0;
+
+    for (; index <= top; index++) {
+        switch (luaL_checkoption(L, index, NULL, options)) {
+        case 0:
+            opts |= WNOHANG;
+            break;
+
+        case 1:
+            opts |= WUNTRACED;
+            break;
+
+        default:
+#ifdef WCONTINUED
+            opts |= WCONTINUED;
+#endif
+            break;
+        }
+    }
+
+    return opts;
+}
+
 static int waitpid_lua(lua_State *L)
 {
-    int opts  = (int)checkflags(L, 2);
+    int opts  = checkoptions(L, 2);
     pid_t pid = 0;
     int rc    = 0;
 
@@ -542,22 +555,6 @@ static int exec_lua(lua_State *L)
 
 LUALIB_API int luaopen_exec_syscall(lua_State *L)
 {
-    lua_errno_loadlib(L);
-
-    lua_createtable(L, 0, 5);
-    // export functions
-    lua_pushcfunction(L, exec_lua);
-    lua_setfield(L, -2, "exec");
-    // export constants
-    lua_pushinteger(L, WNOHANG);
-    lua_setfield(L, -2, "WNOHANG");
-    lua_pushinteger(L, WNOWAIT);
-    lua_setfield(L, -2, "WNOWAIT");
-#ifdef WCONTINUED
-    lua_pushinteger(L, WCONTINUED);
-    lua_setfield(L, -2, "WCONTINUED");
-#endif
-
     // create metatable
     if (luaL_newmetatable(L, EXEC_PROC_MT)) {
         struct luaL_Reg mmethod[] = {
@@ -585,6 +582,12 @@ LUALIB_API int luaopen_exec_syscall(lua_State *L)
         lua_setfield(L, -2, "__index");
         lua_pop(L, 1);
     }
+
+    lua_errno_loadlib(L);
+    lua_createtable(L, 0, 5);
+    // export functions
+    lua_pushcfunction(L, exec_lua);
+    lua_setfield(L, -2, "exec");
 
     return 1;
 }

@@ -139,11 +139,10 @@ this method suspends the execution of the calling process until the child proces
 
 **Parameters**
 
-- `...:integer`: the following options can be specifed.  
-   please refer to `man 2 waitpid` for more details.
-  - `exec.WNOHANG`
-  - `exec.WNOWAIT`
-  - `exec.WCONTINUED`
+- `...:string`: wait options;  
+    - `'nohang'`: return immediately if no child has exited.
+    - `'untraced'`: also return if a child has stopped.
+    - `'continued'`: also return if a stopped child has been resumed by delivery of `SIGCONT`.
 
 **Returns**
 

@@ -88,7 +88,7 @@ function testcase.waitpid()
     local pid = p.pid
 
     -- test that returns immediately with again=true
-    local res, err, again = p:waitpid(exec.WNOHANG)
+    local res, err, again = p:waitpid('nohang')
     assert.is_nil(res)
     assert.is_nil(err)
     assert.is_true(again)
@@ -111,7 +111,7 @@ function testcase.waitpid()
 
     -- test that throws an error if option arguments is invalid
     err = assert.throws(p.waitpid, p, 'hello')
-    assert.match(err, 'integer expected,')
+    assert.match(err, 'invalid option')
 end
 
 function testcase.kill()
