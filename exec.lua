@@ -19,12 +19,33 @@
 -- OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 -- THE SOFTWARE.
 --
-local syscall = require('exec.syscall')
---- @type fun( path:string, argv:nil|string[], envs:nil|table<string, string|number|boolean>, search:nil|boolean, pwd:nil|string )
-local exec = syscall.exec
+local new_process = require('exec.process')
 
---- @alias exec.process userdata
---- @alias error userdata
+--- @class exec.pid
+--- @field pid fun(self:exec.pid):(integer)
+--- @field stdin fun(self:exec.pid):(file*)
+--- @field stdout fun(self:exec.pid):(file*)
+--- @field stderr fun(self:exec.pid):(file*)
+--- @field kill fun(self:exec.pid, sig:number):(ok:boolean, err:any)
+--- @field waitpid fun(self:exec.pid, ...:string):(res:table|nil, err:any, again:boolean)
+--- @type fun( path:string, argv:string[]?, envs:table<string, string|number|boolean>?, search:boolean?, pwd:string? ):(pid:exec.pid, err:any)
+local syscall = require('exec.syscall')
+
+--- do_exec
+--- @param path string
+--- @param argv string[]?
+--- @param envs table<string, string|number|boolean>?
+--- @param search boolean?
+--- @param pwd string?
+--- @return exec.process
+--- @return any err
+local function do_exec(path, argv, envs, search, pwd)
+    local ep, err = syscall(path, argv, envs, search, pwd)
+    if not ep then
+        return nil, err
+    end
+    return new_process(ep)
+end
 
 --- execve
 --- @param path string
@@ -32,9 +53,9 @@ local exec = syscall.exec
 --- @param envs table<string, string|number|boolean>
 --- @param pwd string
 --- @return exec.process
---- @return error err
+--- @return any err
 local function execve(path, argv, envs, pwd)
-    return exec(path, argv, envs or {}, nil, pwd)
+    return do_exec(path, argv, envs or {}, nil, pwd)
 end
 
 --- execvp
@@ -42,9 +63,9 @@ end
 --- @param argv string[]
 --- @param pwd string
 --- @return exec.process
---- @return error err
+--- @return any err
 local function execvp(path, argv, pwd)
-    return exec(path, argv, nil, true, pwd)
+    return do_exec(path, argv, nil, true, pwd)
 end
 
 --- execv
@@ -52,41 +73,41 @@ end
 --- @param argv string[]
 --- @param pwd string
 --- @return exec.process
---- @return error err
+--- @return any err
 local function execv(path, argv, pwd)
-    return exec(path, argv, nil, nil, pwd)
+    return do_exec(path, argv, nil, nil, pwd)
 end
 
 --- execle
 --- @param path string
 --- @param envs table<string, string|number|boolean>
---- @vararg string
+--- @param ... string
 --- @return exec.process
---- @return error err
+--- @return any err
 local function execle(path, envs, ...)
-    return execve(path, {
+    return do_exec(path, {
         ...,
     }, envs)
 end
 
 --- execlp
 --- @param path string
---- @vararg string
+--- @param ... string
 --- @return exec.process
---- @return error err
+--- @return any err
 local function execlp(path, ...)
-    return execvp(path, {
+    return do_exec(path, {
         ...,
     })
 end
 
 --- execl
 --- @param path string
---- @vararg string
+--- @param ... string
 --- @return exec.process
---- @return error err
+--- @return any err
 local function execl(path, ...)
-    return execv(path, {
+    return do_exec(path, {
         ...,
     })
 end
@@ -98,7 +119,4 @@ return {
     execv = execv,
     execvp = execvp,
     execve = execve,
-    WNOHANG = syscall.WNOHANG,
-    WNOWAIT = syscall.WNOWAIT,
-    WCONTINUED = syscall.WCONTINUED,
 }

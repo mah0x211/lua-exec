@@ -75,7 +75,7 @@ function testcase.execvp()
     assert(setenv('PATH', pathenv, true))
 
     -- test that exec command
-    local p = assert(exec.execv('example.sh', {
+    local p = assert(exec.execvp('example.sh', {
         'hello',
         'execvp',
     }))
@@ -88,7 +88,7 @@ function testcase.waitpid()
     local pid = p.pid
 
     -- test that returns immediately with again=true
-    local res, err, again = p:waitpid('nohang')
+    local res, err, again = p:waitpid('nohang', 'untraced', 'continued')
     assert.is_nil(res)
     assert.is_nil(err)
     assert.is_true(again)
