@@ -19,8 +19,8 @@ all: $(SOBJ)
 
 install: $(SOBJ)
 	$(INSTALL) $(PACKAGE).lua $(INST_LUADIR)
-	# $(INSTALL) -d $(INST_LIBDIR)
-	# $(INSTALL) $(LUALIBS) $(INST_LIBDIR)
+	$(INSTALL) -d $(INST_LIBDIR)
+	$(INSTALL) $(LUALIBS) $(INST_LIBDIR)
 	$(INSTALL) -d $(INST_CLIBDIR)
 	$(INSTALL) $(SOBJ) $(INST_CLIBDIR)
 	rm -f ./src/*.o
