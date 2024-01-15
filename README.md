@@ -123,17 +123,17 @@ the `exec.exec*` function returns a process object `exec.process` if the child p
 
 **NOTE:** when this object is GC'd, it sends a `SIGKILL` signal to the associated process if it is still alive.
 
-this object contains the following fields;
 
-- `pid:integer`: process id.
-- `stdin:file*`: write-only file for stdin.
-- `stdout:file*`: read-only file for stdout.
-- `stdout:file*`: read-only file for stderr.
+## pid = process:getpid()
 
-it also has the following methods;
+returns the process-id of the child process.
+
+**Returns**
+
+- `pid:integer`: process-id.
 
 
-## res, err, again = p:waitpid( ... )
+## res, err, again = process:waitpid( ... )
 
 this method suspends the execution of the calling process until the child process changes its state.
 
@@ -158,7 +158,7 @@ this method suspends the execution of the calling process until the child proces
 - `again:boolean`: `true` if the `exec.WNOHANG` option specified and `waitpid` syscall returned `0`.
 
 
-## ok, err = p:kill( [signo] )
+## ok, err = process:kill( [signo] )
 
 send signal to a process and calling the waitpid method.
 

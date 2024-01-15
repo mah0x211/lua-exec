@@ -85,7 +85,7 @@ end
 
 function testcase.waitpid()
     local p = assert(exec.execl('./example.sh', 'hello'))
-    local pid = p.pid
+    local pid = p:getpid()
 
     -- test that returns immediately with again=true
     local res, err, again = p:waitpid('nohang', 'untraced', 'continued')
@@ -116,7 +116,7 @@ end
 
 function testcase.kill()
     local p = assert(exec.execl('./example.sh', 'hello'))
-    local pid = p.pid
+    local pid = p:getpid()
 
     -- test that EINVAL error
     local ok, err = p:kill(4096)

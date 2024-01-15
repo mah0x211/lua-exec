@@ -21,7 +21,6 @@
 --
 --- @class exec.process
 --- @field private ep exec.pid
---- @field private pid integer
 --- @field private stdin file*
 --- @field private stdout file*
 --- @field private stderr file*
@@ -32,11 +31,16 @@ local Process = {}
 --- @return exec.process
 function Process:init(ep)
     self.ep = ep
-    self.pid = ep:pid()
     self.stdin = ep:stdin()
     self.stdout = ep:stdout()
     self.stderr = ep:stderr()
     return self
+end
+
+--- getpid
+--- @return integer pid
+function Process:getpid()
+    return self.ep:pid()
 end
 
 --- kill
