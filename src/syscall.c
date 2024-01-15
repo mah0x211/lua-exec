@@ -401,6 +401,14 @@ static int stdpipe_create(lua_State *L, exec_pid_t *ep, int fds[6])
     fds[4] = stdout_rdwr[1];
     fds[5] = stderr_rdwr[1];
 
+    // set O_NONBLOCK to parent fds
+    if (fcntl(stdin_rdwr[1], F_SETFL, O_NONBLOCK) == -1 ||
+        fcntl(stdout_rdwr[0], F_SETFL, O_NONBLOCK) == -1 ||
+        fcntl(stderr_rdwr[0], F_SETFL, O_NONBLOCK) == -1) {
+        stdpipe_close(fd);
+        return -1;
+    }
+
     // create stdin, stdout and stderr FILE streams
     if (!(ep->stdin = fd2file(L, stdin_rdwr[1], "w", _IOLBF)) ||
         !(ep->stdout = fd2file(L, stdout_rdwr[0], "r", _IOLBF)) ||

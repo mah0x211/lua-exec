@@ -18,9 +18,15 @@ function testcase.execl()
     local p = assert(exec.execl('./example.sh', 'hello', 'execl'))
     assert.match(p, '^exec.process: ', false)
 
+    -- test that non-blocking read output of command
+    local res, err, errnum = p.stdout:read('*a')
+    assert.is_nil(res)
+    assert.match(err, 'unavailable')
+    assert.equal(errnum, errno.EAGAIN.code)
+
     -- test that read output of command
-    local res = p.stdout:read('*a')
-    assert.equal(res, 'hello execl\n')
+    local stdout = assert(p:wait_readable())
+    assert.equal(assert(stdout:read()), 'hello execl')
 end
 
 function testcase.execlp()
@@ -32,8 +38,8 @@ function testcase.execlp()
 
     -- test that exec command
     local p = assert(exec.execlp('example.sh', 'hello', 'execlp'))
-    local res = p.stdout:read('*a')
-    assert.equal(res, 'hello execlp\n')
+    local stdout = assert(p:wait_readable())
+    assert.equal(assert(stdout:read()), 'hello execlp')
 end
 
 function testcase.execle()
@@ -41,8 +47,8 @@ function testcase.execle()
     local p = assert(exec.execle('./example.sh', {
         TEST_ENV = 'HELLO_TEST_ENV',
     }, 'hello', 'execle'))
-    local res = p.stdout:read('*a')
-    assert.equal(res, 'hello execle HELLO_TEST_ENV\n')
+    local stdout = assert(p:wait_readable())
+    assert.equal(assert(stdout:read()), 'hello execle HELLO_TEST_ENV')
 end
 
 function testcase.execv()
@@ -51,8 +57,8 @@ function testcase.execv()
         'hello',
         'execv',
     }))
-    local res = p.stdout:read('*a')
-    assert.equal(res, 'hello execv\n')
+    local stdout = assert(p:wait_readable())
+    assert.equal(assert(stdout:read()), 'hello execv')
 end
 
 function testcase.execve()
@@ -63,8 +69,8 @@ function testcase.execve()
     }, {
         TEST_ENV = 'HELLO_TEST_ENV',
     }))
-    local res = p.stdout:read('*a')
-    assert.equal(res, 'hello execve HELLO_TEST_ENV\n')
+    local stdout = assert(p:wait_readable())
+    assert.equal(assert(stdout:read()), 'hello execve HELLO_TEST_ENV')
 end
 
 function testcase.execvp()
@@ -79,8 +85,8 @@ function testcase.execvp()
         'hello',
         'execvp',
     }))
-    local res = p.stdout:read('*a')
-    assert.equal(res, 'hello execvp\n')
+    local stdout = assert(p:wait_readable())
+    assert.equal(assert(stdout:read()), 'hello execvp')
 end
 
 function testcase.close()
@@ -158,5 +164,53 @@ function testcase.kill()
     ok, err = p:kill()
     assert.is_false(ok)
     assert.is_nil(err)
+end
+
+function testcase.wait_readable()
+    local p = assert(exec.execl('./example.sh', 'hello'))
+    local pid = p.pid
+
+    -- test that wait readable file
+    local files = {
+        [p.stdout] = true,
+        [p.stderr] = true,
+    }
+    local compare = {
+        [p.stdout] = 'hello',
+        [p.stderr] = 'error message',
+    }
+    while next(files) do
+        local f, err, timeout, hup = p:wait_readable()
+        assert.match(f, '^file ', false)
+        assert.is_nil(err)
+        assert.is_nil(timeout)
+        assert(files[f])
+        if hup then
+            files[f] = nil
+        end
+
+        if compare[f] then
+            assert.equal(assert(f:read()), compare[f])
+            compare[f] = nil
+        end
+    end
+    assert.is_nil(next(compare))
+
+    -- test that return all nil if child process is terminated
+    do
+        local f, err, timeout, hup = p:wait_readable()
+        assert.is_nil(f)
+        assert.is_nil(err)
+        assert.is_nil(timeout)
+        assert.is_nil(hup)
+    end
+
+    -- test that return result value
+    local res, err = p:waitpid()
+    assert.is_nil(err)
+    assert.equal(res, {
+        pid = pid,
+        exit = 0,
+    })
 end
 
