@@ -215,10 +215,14 @@ static int getstdio_lua(lua_State *L)
         lauxh_pushref(L, ep->stdin_ref);
         lauxh_pushref(L, ep->stdout_ref);
         lauxh_pushref(L, ep->stderr_ref);
+        lua_createtable(L, 3, 0);
         lua_pushinteger(L, fileno(ep->stdin));
+        lua_rawseti(L, -2, 0);
         lua_pushinteger(L, fileno(ep->stdout));
+        lua_rawseti(L, -2, 1);
         lua_pushinteger(L, fileno(ep->stderr));
-        return 6;
+        lua_rawseti(L, -2, 2);
+        return 4;
     }
     return 0;
 }

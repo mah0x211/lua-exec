@@ -21,17 +21,17 @@
 --
 --- @class exec.pid
 --- @field getpid fun(self:exec.pid):(integer)
---- @field getstdio fun(self:exec.pid):(in:file*?, out:file*?, err:file*?, infd:integer?, outfd:integer?, errfd:integer?)
+--- @field getstdio fun(self:exec.pid):(in:file*?, out:file*?, err:file*?, fds:integer[]?)
 --- @field close fun(self:exec.pid)
 --- @field kill fun(self:exec.pid, sig:number?):(ok:boolean, err:any)
 --- @field waitpid fun(self:exec.pid, ...:string):(res:table|nil, err:any, again:boolean)
 
 --- @class exec.process
 --- @field private ep exec.pid
---- @field pid integer
---- @field stdin file*
---- @field stdout file*
---- @field stderr file*
+--- @field pid integer?
+--- @field stdin file*?
+--- @field stdout file*?
+--- @field stderr file*?
 local Process = {}
 
 --- init
