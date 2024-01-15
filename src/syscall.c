@@ -190,7 +190,7 @@ static int stdin_lua(lua_State *L)
     return 1;
 }
 
-static int pid_lua(lua_State *L)
+static int getpid_lua(lua_State *L)
 {
     exec_pid_t *ep = luaL_checkudata(L, 1, EXEC_PID_MT);
     lua_pushinteger(L, ep->pid);
@@ -540,7 +540,7 @@ LUALIB_API int luaopen_exec_syscall(lua_State *L)
             {NULL,         NULL        }
         };
         struct luaL_Reg method[] = {
-            {"pid",     pid_lua    },
+            {"getpid",  getpid_lua },
             {"stdin",   stdin_lua  },
             {"stdout",  stdout_lua },
             {"stderr",  stderr_lua },
