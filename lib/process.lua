@@ -32,10 +32,10 @@ local Process = {}
 --- @return exec.process
 function Process:init(ep)
     self.ep = ep
-    self.pid = ep:pid()
     self.stdin = ep:stdin()
     self.stdout = ep:stdout()
     self.stderr = ep:stderr()
+    self.pid = ep:getpid()
     return self
 end
 
