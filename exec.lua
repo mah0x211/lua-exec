@@ -21,11 +21,6 @@
 --
 local new_process = require('exec.process')
 
---- @class exec.pid
---- @field getpid fun(self:exec.pid):(integer)
---- @field getstdio fun(self:exec.pid):(in:file*?, out:file*?, err:file*?, infd:integer?, outfd:integer?, errfd:integer?)
---- @field kill fun(self:exec.pid, sig:number):(ok:boolean, err:any)
---- @field waitpid fun(self:exec.pid, ...:string):(res:table|nil, err:any, again:boolean)
 --- @type fun( path:string, argv:string[]?, envs:table<string, string|number|boolean>?, search:boolean?, pwd:string? ):(pid:exec.pid, err:any)
 local syscall = require('exec.syscall')
 

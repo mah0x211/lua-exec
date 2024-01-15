@@ -133,7 +133,16 @@ this object contains the following fields;
 it also has the following methods;
 
 
-## res, err, again = p:waitpid( ... )
+## ok, err = process:close()
+
+close the associated files and call a `self:kill()` method.
+
+**Returns**
+
+same as `process:kill()` method.
+
+
+## res, err, again = process:waitpid( ... )
 
 this method suspends the execution of the calling process until the child process changes its state.
 
@@ -158,7 +167,7 @@ this method suspends the execution of the calling process until the child proces
 - `again:boolean`: `true` if the `exec.WNOHANG` option specified and `waitpid` syscall returned `0`.
 
 
-## ok, err = p:kill( [signo] )
+## ok, err = process:kill( [signo] )
 
 send signal to a process and calling the waitpid method.
 

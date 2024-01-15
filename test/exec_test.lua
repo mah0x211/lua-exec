@@ -83,6 +83,24 @@ function testcase.execvp()
     assert.equal(res, 'hello execvp\n')
 end
 
+function testcase.close()
+    local p = assert(exec.execl('./example.sh', 'hello'))
+
+    -- test that close all file descriptors
+    local ok, err = p:close()
+    assert.is_true(ok)
+    assert.is_nil(err)
+    assert.is_nil(p.pid)
+    assert.is_nil(p.stdin)
+    assert.is_nil(p.stdout)
+    assert.is_nil(p.stderr)
+
+    -- test that can be called multiple times
+    ok, err = p:close()
+    assert.is_false(ok)
+    assert.is_nil(err)
+end
+
 function testcase.waitpid()
     local p = assert(exec.execl('./example.sh', 'hello'))
     local pid = p.pid
