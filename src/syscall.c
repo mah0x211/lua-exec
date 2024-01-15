@@ -173,21 +173,24 @@ static int stderr_lua(lua_State *L)
 {
     exec_pid_t *ep = luaL_checkudata(L, 1, EXEC_PID_MT);
     lauxh_pushref(L, ep->stderr_ref);
-    return 1;
+    lua_pushinteger(L, fileno(lauxh_checkfile(L, 2)));
+    return 2;
 }
 
 static int stdout_lua(lua_State *L)
 {
     exec_pid_t *ep = luaL_checkudata(L, 1, EXEC_PID_MT);
     lauxh_pushref(L, ep->stdout_ref);
-    return 1;
+    lua_pushinteger(L, fileno(lauxh_checkfile(L, -1)));
+    return 2;
 }
 
 static int stdin_lua(lua_State *L)
 {
     exec_pid_t *ep = luaL_checkudata(L, 1, EXEC_PID_MT);
     lauxh_pushref(L, ep->stdin_ref);
-    return 1;
+    lua_pushinteger(L, fileno(lauxh_checkfile(L, -1)));
+    return 2;
 }
 
 static int pid_lua(lua_State *L)
