@@ -22,10 +22,8 @@
 local new_process = require('exec.process')
 
 --- @class exec.pid
---- @field pid fun(self:exec.pid):(integer)
---- @field stdin fun(self:exec.pid):(file*)
---- @field stdout fun(self:exec.pid):(file*)
---- @field stderr fun(self:exec.pid):(file*)
+--- @field getpid fun(self:exec.pid):(integer)
+--- @field getstdio fun(self:exec.pid):(in:file*?, out:file*?, err:file*?, infd:integer?, outfd:integer?, errfd:integer?)
 --- @field kill fun(self:exec.pid, sig:number):(ok:boolean, err:any)
 --- @field waitpid fun(self:exec.pid, ...:string):(res:table|nil, err:any, again:boolean)
 --- @type fun( path:string, argv:string[]?, envs:table<string, string|number|boolean>?, search:boolean?, pwd:string? ):(pid:exec.pid, err:any)
@@ -37,7 +35,7 @@ local syscall = require('exec.syscall')
 --- @param envs table<string, string|number|boolean>?
 --- @param search boolean?
 --- @param pwd string?
---- @return exec.process
+--- @return exec.process?
 --- @return any err
 local function do_exec(path, argv, envs, search, pwd)
     local ep, err = syscall(path, argv, envs, search, pwd)
@@ -52,7 +50,7 @@ end
 --- @param argv string[]
 --- @param envs table<string, string|number|boolean>
 --- @param pwd string
---- @return exec.process
+--- @return exec.process?
 --- @return any err
 local function execve(path, argv, envs, pwd)
     return do_exec(path, argv, envs or {}, nil, pwd)
@@ -62,7 +60,7 @@ end
 --- @param path string
 --- @param argv string[]
 --- @param pwd string
---- @return exec.process
+--- @return exec.process?
 --- @return any err
 local function execvp(path, argv, pwd)
     return do_exec(path, argv, nil, true, pwd)
@@ -72,7 +70,7 @@ end
 --- @param path string
 --- @param argv string[]
 --- @param pwd string
---- @return exec.process
+--- @return exec.process?
 --- @return any err
 local function execv(path, argv, pwd)
     return do_exec(path, argv, nil, nil, pwd)
@@ -82,7 +80,7 @@ end
 --- @param path string
 --- @param envs table<string, string|number|boolean>
 --- @param ... string
---- @return exec.process
+--- @return exec.process?
 --- @return any err
 local function execle(path, envs, ...)
     return do_exec(path, {
@@ -93,7 +91,7 @@ end
 --- execlp
 --- @param path string
 --- @param ... string
---- @return exec.process
+--- @return exec.process?
 --- @return any err
 local function execlp(path, ...)
     return do_exec(path, {
@@ -104,7 +102,7 @@ end
 --- execl
 --- @param path string
 --- @param ... string
---- @return exec.process
+--- @return exec.process?
 --- @return any err
 local function execl(path, ...)
     return do_exec(path, {

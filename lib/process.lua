@@ -21,10 +21,10 @@
 --
 --- @class exec.process
 --- @field private ep exec.pid
---- @field private pid integer
---- @field private stdin file*
---- @field private stdout file*
---- @field private stderr file*
+--- @field pid integer
+--- @field stdin file*
+--- @field stdout file*
+--- @field stderr file*
 local Process = {}
 
 --- init
@@ -32,10 +32,8 @@ local Process = {}
 --- @return exec.process
 function Process:init(ep)
     self.ep = ep
-    self.stdin = ep:stdin()
-    self.stdout = ep:stdout()
-    self.stderr = ep:stderr()
     self.pid = ep:getpid()
+    self.stdin, self.stdout, self.stderr = ep:getstdio()
     return self
 end
 
