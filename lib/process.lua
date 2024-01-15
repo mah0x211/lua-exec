@@ -19,6 +19,13 @@
 -- OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 -- THE SOFTWARE.
 --
+--- @class exec.pid
+--- @field getpid fun(self:exec.pid):(integer)
+--- @field getstdio fun(self:exec.pid):(in:file*?, out:file*?, err:file*?, infd:integer?, outfd:integer?, errfd:integer?)
+--- @field close fun(self:exec.pid)
+--- @field kill fun(self:exec.pid, sig:number?):(ok:boolean, err:any)
+--- @field waitpid fun(self:exec.pid, ...:string):(res:table|nil, err:any, again:boolean)
+
 --- @class exec.process
 --- @field private ep exec.pid
 --- @field pid integer
@@ -37,8 +44,20 @@ function Process:init(ep)
     return self
 end
 
+--- close
+--- @return boolean ok
+--- @return any err
+function Process:close()
+    if self.ep:close() then
+        self.pid, self.stdin, self.stdout, self.stderr = nil, nil, nil, nil
+        return self:kill()
+    end
+    -- already closed
+    return false
+end
+
 --- kill
---- @param sig number
+--- @param sig number?
 --- @return boolean ok
 --- @return any err
 function Process:kill(sig)

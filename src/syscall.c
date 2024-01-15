@@ -173,6 +173,40 @@ static int kill_lua(lua_State *L)
     return 2;
 }
 
+static int close_lua(lua_State *L)
+{
+    exec_pid_t *ep = luaL_checkudata(L, 1, EXEC_PID_MT);
+
+    if (ep->stdin) {
+        switch (luaL_loadstring(L, "for _, f in ipairs({...}) do"
+                                   "  f:close()"
+                                   "end")) {
+        case 0:
+            lauxh_pushref(L, ep->stdin_ref);
+            lauxh_pushref(L, ep->stdout_ref);
+            lauxh_pushref(L, ep->stderr_ref);
+            lua_call(L, 3, 0);
+            ep->stdin = ep->stdout = ep->stderr = NULL;
+            break;
+
+        case LUA_ERRMEM:
+            // delegate to lua vm
+            break;
+
+        default:
+            // something wrong
+            return lua_error(L);
+        }
+        ep->stdin_ref  = lauxh_unref(L, ep->stdin_ref);
+        ep->stdout_ref = lauxh_unref(L, ep->stdout_ref);
+        ep->stderr_ref = lauxh_unref(L, ep->stderr_ref);
+        lua_pushboolean(L, 1);
+    } else {
+        lua_pushboolean(L, 0);
+    }
+    return 1;
+}
+
 static int getstdio_lua(lua_State *L)
 {
     exec_pid_t *ep = luaL_checkudata(L, 1, EXEC_PID_MT);
@@ -554,6 +588,7 @@ LUALIB_API int luaopen_exec_syscall(lua_State *L)
         struct luaL_Reg method[] = {
             {"getpid",   getpid_lua  },
             {"getstdio", getstdio_lua},
+            {"close",    close_lua   },
             {"kill",     kill_lua    },
             {"waitpid",  waitpid_lua },
             {NULL,       NULL        }
