@@ -25,6 +25,7 @@
 #include <limits.h>
 #include <math.h>
 #include <signal.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/types.h>
@@ -37,6 +38,9 @@
 
 typedef struct {
     pid_t pid;
+    FILE *stdin;
+    FILE *stdout;
+    FILE *stderr;
     int stdin_ref;
     int stdout_ref;
     int stderr_ref;
@@ -169,25 +173,20 @@ static int kill_lua(lua_State *L)
     return 2;
 }
 
-static int stderr_lua(lua_State *L)
+static int getstdio_lua(lua_State *L)
 {
     exec_pid_t *ep = luaL_checkudata(L, 1, EXEC_PID_MT);
-    lauxh_pushref(L, ep->stderr_ref);
-    return 1;
-}
 
-static int stdout_lua(lua_State *L)
-{
-    exec_pid_t *ep = luaL_checkudata(L, 1, EXEC_PID_MT);
-    lauxh_pushref(L, ep->stdout_ref);
-    return 1;
-}
-
-static int stdin_lua(lua_State *L)
-{
-    exec_pid_t *ep = luaL_checkudata(L, 1, EXEC_PID_MT);
-    lauxh_pushref(L, ep->stdin_ref);
-    return 1;
+    if (ep->stdin) {
+        lauxh_pushref(L, ep->stdin_ref);
+        lauxh_pushref(L, ep->stdout_ref);
+        lauxh_pushref(L, ep->stderr_ref);
+        lua_pushinteger(L, fileno(ep->stdin));
+        lua_pushinteger(L, fileno(ep->stdout));
+        lua_pushinteger(L, fileno(ep->stderr));
+        return 6;
+    }
+    return 0;
 }
 
 static int getpid_lua(lua_State *L)
@@ -215,10 +214,13 @@ static int gc_lua(lua_State *L)
             waitpid(ep->pid, NULL, WNOHANG | WUNTRACED);
         }
     }
+
     // release file descriptor reference
-    lauxh_unref(L, ep->stdin_ref);
-    lauxh_unref(L, ep->stdout_ref);
-    lauxh_unref(L, ep->stderr_ref);
+    if (ep->stdin) {
+        lauxh_unref(L, ep->stdin_ref);
+        lauxh_unref(L, ep->stdout_ref);
+        lauxh_unref(L, ep->stderr_ref);
+    }
 
     return 0;
 }
@@ -302,6 +304,9 @@ static void do_exec(int fds[6], int search, const char *path, char **argv,
                 }
             }
         }
+        setvbuf(stdin, NULL, _IOLBF, 0);
+        setvbuf(stdout, NULL, _IOLBF, 0);
+        setvbuf(stderr, NULL, _IONBF, 0);
         execvp(path, argv);
         perror("failed to execvp()");
     } else if (envp) {
@@ -313,19 +318,25 @@ static void do_exec(int fds[6], int search, const char *path, char **argv,
     }
 }
 
-static inline int fd2file(lua_State *L, int fd, const char *mode)
+static inline FILE *fd2file(lua_State *L, int fd, const char *mode, int bufmode)
 {
+    FILE *fp = NULL;
+
     errno = 0;
     fd    = dup(fd);
     if (fd == -1) {
         // failed to duplicate a fd
-        return -1;
-    } else if (lauxh_tofile(L, fd, mode, NULL) == NULL) {
-        close(fd);
-        return -1;
+        return NULL;
     }
 
-    return 1;
+    fp = lauxh_tofile(L, fd, mode, NULL);
+    if (fp == NULL) {
+        close(fd);
+        return NULL;
+    }
+    setvbuf(fp, NULL, bufmode, 0);
+
+    return fp;
 }
 
 static int stdpipe_create(lua_State *L, exec_pid_t *ep, int fds[6])
@@ -352,9 +363,10 @@ static int stdpipe_create(lua_State *L, exec_pid_t *ep, int fds[6])
     fds[4] = stdout_rdwr[1];
     fds[5] = stderr_rdwr[1];
 
-    // create stdin, stdout and stderr file
-    if (fd2file(L, fds[0], "w") == -1 || fd2file(L, fds[1], "r") == -1 ||
-        fd2file(L, fds[2], "r") == -1) {
+    // create stdin, stdout and stderr FILE streams
+    if (!(ep->stdin = fd2file(L, stdin_rdwr[1], "w", _IOLBF)) ||
+        !(ep->stdout = fd2file(L, stdout_rdwr[0], "r", _IOLBF)) ||
+        !(ep->stderr = fd2file(L, stderr_rdwr[0], "r", _IONBF))) {
         stdpipe_close(fds);
         return -1;
     }
@@ -540,13 +552,11 @@ LUALIB_API int luaopen_exec_syscall(lua_State *L)
             {NULL,         NULL        }
         };
         struct luaL_Reg method[] = {
-            {"getpid",  getpid_lua },
-            {"stdin",   stdin_lua  },
-            {"stdout",  stdout_lua },
-            {"stderr",  stderr_lua },
-            {"kill",    kill_lua   },
-            {"waitpid", waitpid_lua},
-            {NULL,      NULL       }
+            {"getpid",   getpid_lua  },
+            {"getstdio", getstdio_lua},
+            {"kill",     kill_lua    },
+            {"waitpid",  waitpid_lua },
+            {NULL,       NULL        }
         };
 
         // metamethods

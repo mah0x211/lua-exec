@@ -29,7 +29,7 @@ execute the file pointed to the path.
 **Returns**
 
 - `p:exec.process`: process object.
-- `err:error`: error object.
+- `err:any`: error object.
 
 
 ## p, err = exec.execlp( path [, ...])
@@ -47,7 +47,7 @@ if the specified `path` does not contain a slash (`/`) character, `path` searche
 **Returns**
 
 - `p:exec.process`: process object.
-- `err:error`: error object.
+- `err:any`: error object.
 
 
 ## p, err = exec.execle( path [, envs [, ...]])
@@ -63,7 +63,7 @@ execute the file pointed to the path.
 **Returns**
 
 - `p:exec.process`: process object.
-- `err:error`: error object.
+- `err:any`: error object.
 
 
 ## p, err = exec.execv( path [, argv [, pwd]] )
@@ -79,7 +79,7 @@ execute the file pointed to the path.
 **Returns**
 
 - `p:exec.process`: process object.
-- `err:error`: error object.
+- `err:any`: error object.
 
 
 ## p, err = exec.execve( path [, argv [, envs [, pwd]]])
@@ -96,7 +96,7 @@ execute the file pointed to the path.
 **Returns**
 
 - `p:exec.process`: process object.
-- `err:error`: error object.
+- `err:any`: error object.
 
 
 ## p, err = exec.execvp( path [, argv [, pwd]])
@@ -114,7 +114,7 @@ if the specified `path` does not contain a slash (`/`) character, `path` searche
 **Returns**
 
 - `p:exec.process`: process object.
-- `err:error`: error object.
+- `err:any`: error object.
 
 
 ## Process Object
@@ -126,9 +126,9 @@ the `exec.exec*` function returns a process object `exec.process` if the child p
 this object contains the following fields;
 
 - `pid:integer`: process id.
-- `stdin:file*`: write-only file for stdin.
-- `stdout:file*`: read-only file for stdout.
-- `stdout:file*`: read-only file for stderr.
+- `stdin:file*`: write-only file for stdin. (line-buffered)
+- `stdout:file*`: read-only file for stdout. (line-buffered)
+- `stdout:file*`: read-only file for stderr. (non-buffered)
 
 it also has the following methods;
 
@@ -154,7 +154,7 @@ this method suspends the execution of the calling process until the child proces
   - `coredump:boolean`: `true` if the process produced a core dump.
   - `sigstop:integer`: the number of the signal which caused the process to stop.
   - `sigcont:boolean`: `true` if the process was resumed by delivery of `SIGCONT`.
-- `err:error`: error object.
+- `err:any`: error object.
 - `again:boolean`: `true` if the `exec.WNOHANG` option specified and `waitpid` syscall returned `0`.
 
 
