@@ -202,3 +202,23 @@ this behavior is depends on the https://github.com/mah0x211/lua-gpoll module.
 - `timeout:boolean`: `true` if timeout.
 - `hup:boolean`: `true` if the peer of `stdout` or `stderr` has been closed.
 
+
+## fp, err, timeout, hup = process:wait_writable( [sec] )
+
+waits until the process `stdin` becomes writable.
+
+**NOTE** 
+
+this behavior is depends on the https://github.com/mah0x211/lua-gpoll module.  
+
+**Parameters**
+
+- `sec:number`: timeout seconds. (default: `nil`)
+
+**Returns**
+
+- `fp:io.file`: file object of `stdin`.
+- `err:any`: error object.
+- `timeout:boolean`: `true` if timeout.
+- `hup:boolean`: `true` if the peer of `stdin` has been closed.
+

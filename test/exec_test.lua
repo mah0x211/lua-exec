@@ -214,3 +214,84 @@ function testcase.wait_readable()
     })
 end
 
+function testcase.wait_writable()
+    local p = assert(exec.execl('./example.sh', 'read_stdin'))
+    local pid = p.pid
+
+    -- test that write message to stdin
+    do
+        local f, err, timeout, hup = p:wait_writable()
+        assert.match(f, '^file ', false)
+        assert.is_nil(err)
+        assert.is_nil(timeout)
+        assert.is_nil(hup)
+        assert.equal(f, p.stdin)
+        assert(f:write('message1 from stdin\n'))
+        assert(f:write('message2 from stdin\n'))
+    end
+
+    -- test that wait readable file
+    local files = {
+        [p.stdout] = true,
+        [p.stderr] = true,
+    }
+    local compare = {
+        [p.stdout] = {
+            'read_stdin',
+            'message1 from stdin',
+            'message2 from stdin',
+            'EOF',
+        },
+        [p.stderr] = {
+            'error message',
+        },
+    }
+    while next(files) do
+        local f, err, timeout, hup = p:wait_readable()
+        assert.match(f, '^file ', false)
+        assert.is_nil(err)
+        assert.is_nil(timeout)
+        assert(files[f])
+        if hup then
+            files[f] = nil
+        end
+
+        local messages = compare[f]
+        while compare[f] do
+            local msg
+            msg, err = f:read()
+            if not msg then
+                assert.match(err, errno.EAGAIN.message)
+                break
+            end
+            assert.equal(msg, messages[1])
+            table.remove(messages, 1)
+            if #messages == 0 then
+                compare[f] = nil
+            end
+        end
+    end
+    assert.is_nil(next(compare))
+
+    -- test that failed to write to stdin after child process is terminated
+    do
+        local f, err, timeout = p:wait_writable()
+        assert.equal(f, p.stdin)
+        assert.is_nil(err)
+        assert.is_nil(timeout)
+        assert.equal(f, p.stdin)
+
+        local _
+        _, err = f:write('message from stdin\n')
+        assert.match(err, errno.EPIPE.message)
+    end
+
+    -- test that return result value
+    local res, err = p:waitpid()
+    assert.is_nil(err)
+    assert.equal(res, {
+        pid = pid,
+        exit = 0,
+    })
+end
+

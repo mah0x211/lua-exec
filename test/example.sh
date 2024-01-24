@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/usr/bin/env bash
 
 set -e
 
@@ -12,4 +12,5 @@ if [ "$1" = "read_stdin" ]; then
         echo "$line"
     done
     echo "EOF"
+    exit 0
 fi

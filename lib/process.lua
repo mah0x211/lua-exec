@@ -21,6 +21,7 @@
 --
 local pairs = pairs
 local wait_readable = require('gpoll').wait_readable
+local wait_writable = require('gpoll').wait_writable
 local unwait_readable = require('gpoll').unwait_readable
 local unwait_writable = require('gpoll').unwait_writable
 
@@ -130,6 +131,23 @@ function Process:wait_readable(sec)
         stdfds[2] = nil
     end
     return self.stderr, nil, nil, hup
+end
+
+--- wait_writable
+--- @param sec number?
+--- @return file*? f
+--- @return any err
+--- @return boolean? timeout
+--- @return boolean? hup
+function Process:wait_writable(sec)
+    local stdfds = self.stdfds
+    local fd, err, timeout, hup = wait_writable(stdfds[0], sec)
+    if not fd then
+        return nil, err, timeout
+    elseif hup then
+        stdfds[0] = nil
+    end
+    return self.stdin, nil, nil, hup
 end
 
 Process = require('metamodule').new(Process)

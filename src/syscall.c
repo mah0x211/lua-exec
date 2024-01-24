@@ -410,7 +410,7 @@ static int stdpipe_create(lua_State *L, exec_pid_t *ep, int fds[6])
     }
 
     // create stdin, stdout and stderr FILE streams
-    if (!(ep->stdin = fd2file(L, stdin_rdwr[1], "w", _IOLBF)) ||
+    if (!(ep->stdin = fd2file(L, stdin_rdwr[1], "w", _IONBF)) ||
         !(ep->stdout = fd2file(L, stdout_rdwr[0], "r", _IOLBF)) ||
         !(ep->stderr = fd2file(L, stderr_rdwr[0], "r", _IONBF))) {
         stdpipe_close(fds);
