@@ -130,6 +130,8 @@ this object contains the following fields;
 - `stdout:file*`: read-only file for stdout. (line-buffered)
 - `stdout:file*`: read-only file for stderr. (non-buffered)
 
+the above files (`stdin`, `stdout` and `stderr`) operates in `non-blocking` mode. if you want to process synchronously, use the `wait_readable` and `wait_writable` methods.
+
 it also has the following methods;
 
 
@@ -180,4 +182,43 @@ send signal to a process and calling the waitpid method.
 - `ok:boolean`: `true` on success.
 - `err:any`: `nil` and `ok` is `false` on process not found, or error object on failure.
 
+
+## fp, err, timeout, hup = process:wait_readable( [sec] )
+
+waits until the process `stdout` or `stderr` becomes readable.
+
+**NOTE** 
+
+this behavior is depends on the https://github.com/mah0x211/lua-gpoll module.  
+
+**Parameters**
+
+- `sec:number`: timeout seconds. (default: `nil`)
+
+**Returns**
+
+- `fp:io.file`: file object of `stdout` or `stderr`.
+- `err:any`: error object.
+- `timeout:boolean`: `true` if timeout.
+- `hup:boolean`: `true` if the peer of `stdout` or `stderr` has been closed.
+
+
+## fp, err, timeout, hup = process:wait_writable( [sec] )
+
+waits until the process `stdin` becomes writable.
+
+**NOTE** 
+
+this behavior is depends on the https://github.com/mah0x211/lua-gpoll module.  
+
+**Parameters**
+
+- `sec:number`: timeout seconds. (default: `nil`)
+
+**Returns**
+
+- `fp:io.file`: file object of `stdin`.
+- `err:any`: error object.
+- `timeout:boolean`: `true` if timeout.
+- `hup:boolean`: `true` if the peer of `stdin` has been closed.
 

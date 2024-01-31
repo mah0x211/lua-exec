@@ -215,10 +215,14 @@ static int getstdio_lua(lua_State *L)
         lauxh_pushref(L, ep->stdin_ref);
         lauxh_pushref(L, ep->stdout_ref);
         lauxh_pushref(L, ep->stderr_ref);
+        lua_createtable(L, 3, 0);
         lua_pushinteger(L, fileno(ep->stdin));
+        lua_rawseti(L, -2, 0);
         lua_pushinteger(L, fileno(ep->stdout));
+        lua_rawseti(L, -2, 1);
         lua_pushinteger(L, fileno(ep->stderr));
-        return 6;
+        lua_rawseti(L, -2, 2);
+        return 4;
     }
     return 0;
 }
@@ -397,8 +401,16 @@ static int stdpipe_create(lua_State *L, exec_pid_t *ep, int fds[6])
     fds[4] = stdout_rdwr[1];
     fds[5] = stderr_rdwr[1];
 
+    // set O_NONBLOCK to parent fds
+    if (fcntl(stdin_rdwr[1], F_SETFL, O_NONBLOCK) == -1 ||
+        fcntl(stdout_rdwr[0], F_SETFL, O_NONBLOCK) == -1 ||
+        fcntl(stderr_rdwr[0], F_SETFL, O_NONBLOCK) == -1) {
+        stdpipe_close(fd);
+        return -1;
+    }
+
     // create stdin, stdout and stderr FILE streams
-    if (!(ep->stdin = fd2file(L, stdin_rdwr[1], "w", _IOLBF)) ||
+    if (!(ep->stdin = fd2file(L, stdin_rdwr[1], "w", _IONBF)) ||
         !(ep->stdout = fd2file(L, stdout_rdwr[0], "r", _IOLBF)) ||
         !(ep->stderr = fd2file(L, stderr_rdwr[0], "r", _IONBF))) {
         stdpipe_close(fds);
@@ -440,8 +452,10 @@ static int exec(lua_State *L, int search, const char *path, char **argv,
         return 2;
 
     default:
-        // close read-stdin, write-stdout
-        stdpipe_close(fds);
+        // close read-stdin, write-stdout and write-stderr
+        close(fds[3]);
+        close(fds[4]);
+        close(fds[5]);
         lauxh_setmetatable(L, EXEC_PID_MT);
         return 1;
     }
