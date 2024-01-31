@@ -452,8 +452,10 @@ static int exec(lua_State *L, int search, const char *path, char **argv,
         return 2;
 
     default:
-        // close read-stdin, write-stdout
-        stdpipe_close(fds);
+        // close read-stdin, write-stdout and write-stderr
+        close(fds[3]);
+        close(fds[4]);
+        close(fds[5]);
         lauxh_setmetatable(L, EXEC_PID_MT);
         return 1;
     }
