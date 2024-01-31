@@ -80,6 +80,7 @@ end
 --- @return any err
 function Process:close()
     unwait_fds(self.stdfds)
+    self.stdfds = nil
     if self.gco then
         self.gco:disable()
         self.gco = nil
@@ -87,7 +88,6 @@ function Process:close()
 
     if self.ep:close() then
         self.pid, self.stdin, self.stdout, self.stderr = nil, nil, nil, nil
-        self.stdfds = nil
         return self:kill()
     end
     -- already closed
