@@ -20,10 +20,24 @@
 -- THE SOFTWARE.
 --
 local pairs = pairs
+local find = string.find
 local wait_readable = require('gpoll').wait_readable
 local wait_writable = require('gpoll').wait_writable
 local unwait_readable = require('gpoll').unwait_readable
 local unwait_writable = require('gpoll').unwait_writable
+local is_error = require('error.is')
+local signal = require('signal')
+local kill = signal.kill
+--- constants
+local EINVAL = require('errno').EINVAL
+local ESRCH = require('errno').ESRCH
+local SIGTERM = signal.SIGTERM
+local VALID_SIGNALS = {}
+for k, v in pairs(signal) do
+    if find(k, '^SIG%w+$') then
+        VALID_SIGNALS[k], VALID_SIGNALS[v] = v, v
+    end
+end
 
 --- @class exec.pid
 --- @field getpid fun(self:exec.pid):(integer)
@@ -87,19 +101,44 @@ function Process:close()
     end
 
     if self.ep:close() then
+        local ok, err = self:kill()
+        if not ok and err then
+            return false, err
+        end
         self.pid, self.stdin, self.stdout, self.stderr = nil, nil, nil, nil
-        return self:kill()
+        return ok
     end
     -- already closed
     return false
 end
 
 --- kill
---- @param sig number?
+--- @param sig? string|integer
 --- @return boolean ok
 --- @return any err
 function Process:kill(sig)
-    return self.ep:kill(sig)
+    assert(sig == nil or type(sig) == 'string' or type(sig) == 'number',
+           'sig must be string or integer')
+
+    local signo = SIGTERM
+    if sig then
+        signo = sig == '0' and 0 or VALID_SIGNALS[sig]
+        if not signo then
+            return false, EINVAL:new('invalid signal')
+        end
+    end
+
+    if self.pid > 0 then
+        local ok, err = kill(signo, self.pid)
+        if is_error(err, ESRCH) then
+            self.pid = -self.pid
+            err = nil
+        end
+        return ok, err
+    end
+
+    -- already exited
+    return false
 end
 
 --- waitpid
