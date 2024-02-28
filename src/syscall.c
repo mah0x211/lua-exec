@@ -145,34 +145,6 @@ static int waitpid_lua(lua_State *L)
     return 1;
 }
 
-static int kill_lua(lua_State *L)
-{
-    exec_pid_t *ep = luaL_checkudata(L, 1, EXEC_PID_MT);
-    int signo      = (int)luaL_optinteger(L, 2, SIGTERM);
-
-    // pid field does not exists
-    if (ep->pid == -1) {
-        errno = ESRCH;
-        lua_pushboolean(L, 0);
-        return 1;
-    }
-
-    if (kill(ep->pid, signo) == 0) {
-        lua_pushboolean(L, 1);
-        return 1;
-    } else if (errno == ESRCH) {
-        // process does not exist
-        ep->pid = -1;
-        lua_pushboolean(L, 0);
-        return 1;
-    }
-
-    // got error
-    lua_pushboolean(L, 0);
-    lua_errno_new(L, errno, "kill");
-    return 2;
-}
-
 static int close_lua(lua_State *L)
 {
     exec_pid_t *ep = luaL_checkudata(L, 1, EXEC_PID_MT);
@@ -603,7 +575,6 @@ LUALIB_API int luaopen_exec_syscall(lua_State *L)
             {"getpid",   getpid_lua  },
             {"getstdio", getstdio_lua},
             {"close",    close_lua   },
-            {"kill",     kill_lua    },
             {"waitpid",  waitpid_lua },
             {NULL,       NULL        }
         };

@@ -144,12 +144,13 @@ close the associated files and call a `self:kill()` method.
 same as `process:kill()` method.
 
 
-## res, err, again = process:waitpid( ... )
+## res, err, again = process:waitpid( [sec [, ...]] )
 
-this method suspends the execution of the calling process until the child process changes its state.
+wait for process termination by https://github.com/mah0x211/lua-waitpid module.
 
 **Parameters**
 
+- `sec:number`: timeout seconds. (`nil` or `<0` means wait forever)
 - `...:string`: wait options;  
     - `'nohang'`: return immediately if no child has exited.
     - `'untraced'`: also return if a child has stopped.
@@ -169,18 +170,40 @@ this method suspends the execution of the calling process until the child proces
 - `again:boolean`: `true` if the `exec.WNOHANG` option specified and `waitpid` syscall returned `0`.
 
 
-## ok, err = process:kill( [signo] )
+## ok, err = process:kill( [sig] )
 
 send signal to a process and calling the waitpid method.
 
 **Parameters**
 
-- `signo:integer`: the signal number. (default: `SIGTERM`)
+- `sig:integer|string`: the signal number or signal name. (default: `SIGTERM`)
 
 **Returns**
 
 - `ok:boolean`: `true` on success.
 - `err:any`: `nil` and `ok` is `false` on process not found, or error object on failure.
+
+**Example**
+
+```lua
+local dump = require('dump')
+local exec = require('exec')
+
+local p = assert(exec.execl('/bin/sh', '-c', 'sleep 30'))
+-- specify signal by name
+print(p:kill('SIGTERM')) -- true nil
+
+-- it can also be specified by signal number as follows;
+-- local signal = require('signal')
+-- print(p:kill(signal.SIGTERM))
+print(dump(p:waitpid()))
+-- {
+--     exit = 143,
+--     pid = 12862,
+--     sigterm = 15
+-- }
+```
+
 
 
 ## fp, err, timeout, hup = process:wait_readable( [sec] )
