@@ -16,6 +16,7 @@ dependencies = {
     "gcfn >= 0.3",
     "gpoll >= 0.9",
     "signal >= 1.6.1",
+    "waitpid >= 0.3.2",
 }
 build = {
     type = 'make',

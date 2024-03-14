@@ -46,132 +46,18 @@ typedef struct {
     int stderr_ref;
 } exec_pid_t;
 
-static inline int checkoptions(lua_State *L, int index)
-{
-    static const char *const options[] = {
-        "nohang",
-        "untraced",
-        "continued",
-        NULL,
-    };
-    int top  = lua_gettop(L);
-    int opts = 0;
-
-    for (; index <= top; index++) {
-        switch (luaL_checkoption(L, index, NULL, options)) {
-        case 0:
-            opts |= WNOHANG;
-            break;
-
-        case 1:
-            opts |= WUNTRACED;
-            break;
-
-        default:
-#ifdef WCONTINUED
-            opts |= WCONTINUED;
-#endif
-            break;
-        }
-    }
-
-    return opts;
-}
-
-static int waitpid_lua(lua_State *L)
-{
-    exec_pid_t *ep = luaL_checkudata(L, 1, EXEC_PID_MT);
-    int opts       = checkoptions(L, 2);
-    pid_t pid      = 0;
-    int status     = 0;
-
-    // pid field does not exists
-    if (ep->pid == -1) {
-        lua_pushnil(L);
-        errno = ECHILD;
-        lua_errno_new(L, errno, "waitpid");
-        return 2;
-    }
-
-    pid = waitpid(ep->pid, &status, opts);
-    if (pid == 0) {
-        // WNOHANG
-        lua_pushnil(L);
-        lua_pushnil(L);
-        lua_pushboolean(L, 1);
-        return 3;
-    } else if (pid == -1) {
-        // got error
-        if (errno == ECHILD) {
-            // process does not exist
-            ep->pid = -1;
-        }
-        lua_pushnil(L);
-        lua_errno_new(L, errno, "waitpid");
-        return 2;
-    }
-
-    // push result
-    lua_createtable(L, 0, 5);
-    lauxh_pushint2tbl(L, "pid", pid);
-    if (WIFSTOPPED(status)) {
-        // stopped by signal
-        lauxh_pushint2tbl(L, "sigstop", WSTOPSIG(status));
-        return 1;
-    } else if (WIFCONTINUED(status)) {
-        // continued by signal
-        lauxh_pushbool2tbl(L, "sigcont", 1);
-        return 1;
-    }
-
-    // process exited
-    ep->pid = -1;
-    // exit status
-    if (WIFEXITED(status)) {
-        lauxh_pushint2tbl(L, "exit", WEXITSTATUS(status));
-    }
-    // exit by signal
-    if (WIFSIGNALED(status)) {
-        int signo = WTERMSIG(status);
-        lauxh_pushint2tbl(L, "exit", 128 + signo);
-        lauxh_pushint2tbl(L, "sigterm", signo);
-#ifdef WCOREDUMP
-        if (WCOREDUMP(status)) {
-            lauxh_pushbool2tbl(L, "coredump", 1);
-        }
-#endif
-    }
-
-    return 1;
-}
-
 static int close_lua(lua_State *L)
 {
     exec_pid_t *ep = luaL_checkudata(L, 1, EXEC_PID_MT);
 
     if (ep->stdin) {
-        switch (luaL_loadstring(L, "for _, f in ipairs({...}) do"
-                                   "  f:close()"
-                                   "end")) {
-        case 0:
-            lauxh_pushref(L, ep->stdin_ref);
-            lauxh_pushref(L, ep->stdout_ref);
-            lauxh_pushref(L, ep->stderr_ref);
-            lua_call(L, 3, 0);
-            ep->stdin = ep->stdout = ep->stderr = NULL;
-            break;
-
-        case LUA_ERRMEM:
-            // delegate to lua vm
-            break;
-
-        default:
-            // something wrong
-            return lua_error(L);
-        }
+        ep->stdin      = NULL;
+        ep->stdout     = NULL;
+        ep->stderr     = NULL;
         ep->stdin_ref  = lauxh_unref(L, ep->stdin_ref);
         ep->stdout_ref = lauxh_unref(L, ep->stdout_ref);
         ep->stderr_ref = lauxh_unref(L, ep->stderr_ref);
+        ep->pid        = -(ep->pid);
         lua_pushboolean(L, 1);
     } else {
         lua_pushboolean(L, 0);
@@ -217,16 +103,13 @@ static int gc_lua(lua_State *L)
 {
     exec_pid_t *ep = luaL_checkudata(L, 1, EXEC_PID_MT);
 
-    // kill associated process
-    if (ep->pid != -1) {
+    if (ep->stdin) {
+        // kill associated process
         if (waitpid(ep->pid, NULL, WNOHANG | WUNTRACED) == 0 &&
             kill(ep->pid, SIGKILL) == 0) {
-            waitpid(ep->pid, NULL, WNOHANG | WUNTRACED);
+            waitpid(ep->pid, NULL, 0);
         }
-    }
-
-    // release file descriptor reference
-    if (ep->stdin) {
+        // release file descriptor reference
         lauxh_unref(L, ep->stdin_ref);
         lauxh_unref(L, ep->stdout_ref);
         lauxh_unref(L, ep->stderr_ref);
@@ -575,7 +458,6 @@ LUALIB_API int luaopen_exec_syscall(lua_State *L)
             {"getpid",   getpid_lua  },
             {"getstdio", getstdio_lua},
             {"close",    close_lua   },
-            {"waitpid",  waitpid_lua },
             {NULL,       NULL        }
         };
 

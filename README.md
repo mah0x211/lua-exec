@@ -137,24 +137,7 @@ it also has the following methods;
 
 ## ok, err = process:close()
 
-close the associated files and call a `self:kill()` method.
-
-**Returns**
-
-same as `process:kill()` method.
-
-
-## res, err, again = process:waitpid( [sec [, ...]] )
-
-wait for process termination by https://github.com/mah0x211/lua-waitpid module.
-
-**Parameters**
-
-- `sec:number`: timeout seconds. (`nil` or `<0` means wait forever)
-- `...:string`: wait options;  
-    - `'nohang'`: return immediately if no child has exited.
-    - `'untraced'`: also return if a child has stopped.
-    - `'continued'`: also return if a stopped child has been resumed by delivery of `SIGCONT`.
+close the associated files and call a `self:kill()` method, then wait for process termination by https://github.com/mah0x211/lua-waitpid module.
 
 **Returns**
 
@@ -162,10 +145,8 @@ wait for process termination by https://github.com/mah0x211/lua-waitpid module.
   - `pid:integer`: target process-id.
   - `exit:integer`: exit status code if the process terminated normally.
   - `sigterm:integer`: the number of the signal if the process was terminated by signal.
-    - **NOTE:** `exit` field is set to `128` + `the number of the signal`.
+    - **NOTE:** `exit` field is set to `128` + `occurred signal number`.
   - `coredump:boolean`: `true` if the process produced a core dump.
-  - `sigstop:integer`: the number of the signal which caused the process to stop.
-  - `sigcont:boolean`: `true` if the process was resumed by delivery of `SIGCONT`.
 - `err:any`: error object.
 - `again:boolean`: `true` if the `exec.WNOHANG` option specified and `waitpid` syscall returned `0`.
 

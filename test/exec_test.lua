@@ -1,6 +1,7 @@
 require('luacov')
 local concat = table.concat
 local testcase = require('testcase')
+local gettime = require('time.clock').gettime
 local assert = require('assert')
 local errno = require('errno')
 local setenv = require('setenv')
@@ -90,52 +91,46 @@ function testcase.execvp()
 end
 
 function testcase.close()
-    local p = assert(exec.execl('./example.sh', 'hello'))
-
-    -- test that close all file descriptors
-    local ok, err = p:close()
-    assert.is_true(ok)
+    -- test that wait process termination and close associated file descriptors
+    local t = gettime()
+    local p = assert(exec.execl('/bin/sh', '-c', 'sleep 1'))
+    local pid = p.pid
+    local res, err = p:close()
+    t = gettime() - t
     assert.is_nil(err)
-    assert.is_nil(p.pid)
+    assert.equal(p.pid, -pid)
     assert.is_nil(p.stdin)
     assert.is_nil(p.stdout)
     assert.is_nil(p.stderr)
-
-    -- test that can be called multiple times
-    ok, err = p:close()
-    assert.is_false(ok)
-    assert.is_nil(err)
-end
-
-function testcase.waitpid()
-    local p = assert(exec.execl('./example.sh', 'hello'))
-    local pid = p.pid
-
-    -- test that returns immediately with again=true
-    local res, err, again = p:waitpid('nohang', 'untraced', 'continued')
-    assert.is_nil(res)
-    assert.is_nil(err)
-    assert.is_true(again)
-
-    -- test that return result value
-    res, err, again = p:waitpid()
-    assert.is_nil(err)
-    assert.is_nil(again)
-    assert.is_table(res)
     assert.equal(res, {
         pid = pid,
         exit = 0,
     })
+    assert(t >= 1 and t < 1.2)
 
-    -- test that return error object
-    res, err = p:waitpid()
-    assert(res == nil, 'no error')
-    assert.equal(err.op, 'waitpid')
-    assert.equal(err.code, errno.ECHILD.code)
+    -- test that can be called multiple times
+    res, err = p:close()
+    assert.is_nil(err)
+    assert.is_nil(res)
 
-    -- test that throws an error if option arguments is invalid
-    err = assert.throws(p.waitpid, p, 'hello')
-    assert.match(err, 'invalid option')
+    -- test that send SIGTERM after timeout
+    t = gettime()
+    p = assert(exec.execl('/bin/sh', '-c', 'sleep 1'))
+    pid = p.pid
+    res, err = p:close(0.5)
+    t = gettime() - t
+    assert.is_nil(err)
+    assert.equal(p.pid, -pid)
+    assert.greater(t, 0.5)
+    assert.less(t, 0.6)
+    assert.is_nil(p.stdin)
+    assert.is_nil(p.stdout)
+    assert.is_nil(p.stderr)
+    assert.equal(res, {
+        pid = pid,
+        exit = 128 + signal.SIGTERM,
+        sigterm = signal.SIGTERM,
+    })
 end
 
 function testcase.kill()
@@ -148,12 +143,12 @@ function testcase.kill()
     assert.equal(err.type, errno.EINVAL)
 
     -- test that exit by sigterm
-    ok, err = p:kill(signal.SIGTERM)
+    ok, err = p:kill('SIGTERM')
     assert.is_true(ok)
     assert.is_nil(err)
 
-    -- test that return again=true
-    local res = assert(p:waitpid())
+    -- test that wait process termination
+    local res = assert(p:close())
     assert.equal(res, {
         pid = pid,
         exit = 128 + signal.SIGTERM,
@@ -206,7 +201,7 @@ function testcase.wait_readable()
     end
 
     -- test that return result value
-    local res, err = p:waitpid()
+    local res, err = p:close()
     assert.is_nil(err)
     assert.equal(res, {
         pid = pid,
@@ -287,7 +282,7 @@ function testcase.wait_writable()
     end
 
     -- test that return result value
-    local res, err = p:waitpid()
+    local res, err = p:close()
     assert.is_nil(err)
     assert.equal(res, {
         pid = pid,

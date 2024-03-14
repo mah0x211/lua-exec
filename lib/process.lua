@@ -26,6 +26,7 @@ local wait_writable = require('gpoll').wait_writable
 local unwait_readable = require('gpoll').unwait_readable
 local unwait_writable = require('gpoll').unwait_writable
 local is_error = require('error.is')
+local waitpid = require('waitpid')
 local signal = require('signal')
 local kill = signal.kill
 --- constants
@@ -46,12 +47,6 @@ end
 --- @field kill fun(self:exec.pid, sig:number?):(ok:boolean, err:any)
 --- @field waitpid fun(self:exec.pid, ...:string):(res:table|nil, err:any, again:boolean)
 
---- @class gcfn
---- @field enable fun(self:gcfn)
---- @field disable fun(self:gcfn)
---- @type fun(fn:function, ...:any):gcfn
-local gcfn = require('gcfn')
-
 --- @class exec.process
 --- @field private ep exec.pid
 --- @field pid integer?
@@ -59,22 +54,7 @@ local gcfn = require('gcfn')
 --- @field stdout file*?
 --- @field stderr file*?
 --- @field private stdfds integer[]
---- @field private gco gcfn
 local Process = {}
-
---- unwait_fds
---- @param fds integer[]
-local function unwait_fds(fds)
-    if fds then
-        for i, fd in pairs(fds) do
-            if i == 0 then
-                unwait_writable(fd)
-            else
-                unwait_readable(fd)
-            end
-        end
-    end
-end
 
 --- init
 --- @param ep exec.pid
@@ -83,33 +63,68 @@ function Process:init(ep)
     self.ep = ep
     self.pid = ep:getpid()
     self.stdin, self.stdout, self.stderr, self.stdfds = ep:getstdio()
-    self.gco = gcfn(function(stdfds)
-        unwait_fds(stdfds)
-    end, self.stdfds)
     return self
 end
 
---- close
---- @return boolean ok
+--- do_waitpid_and_kill if waitpid returns again=true, then send a specified
+--- signal to the process and wait again.
+--- @param pid integer
+--- @param sec? number
+--- @param ... string|integer signal names or numbers
+--- @return table? res
 --- @return any err
-function Process:close()
-    unwait_fds(self.stdfds)
-    self.stdfds = nil
-    if self.gco then
-        self.gco:disable()
-        self.gco = nil
-    end
-
-    if self.ep:close() then
-        local ok, err = self:kill()
-        if not ok and err then
-            return false, err
+--- @return boolean? again
+local function do_waitpid_and_kill(pid, sec, ...)
+    local signals = {
+        ...,
+    }
+    local nsig = select('#', ...)
+    for i = 0, nsig do
+        local sig = signals[i + 1]
+        local res, err, again = waitpid(pid, sec)
+        if not again or not sig then
+            return res, err
         end
-        self.pid, self.stdin, self.stdout, self.stderr = nil, nil, nil, nil
-        return ok
+        kill(sig, pid)
     end
-    -- already closed
-    return false
+end
+
+--- close
+--- @param sec number?
+--- @return table? res
+--- @return any err
+function Process:close(sec)
+    assert(sec == nil or type(sec) == 'number', 'sec must be number')
+
+    -- close and release stdio references
+    if self.ep then
+        local pid = self.ep:getpid()
+        local res, err
+        if pid > 0 then
+            -- wait process termination
+            res, err = do_waitpid_and_kill(pid, sec, signal.SIGTERM,
+                                           signal.SIGKILL)
+        end
+        self.pid = -pid
+
+        if self.ep:close() then
+            for i, fd in pairs(self.stdfds) do
+                if i == 0 then
+                    unwait_writable(fd)
+                else
+                    unwait_readable(fd)
+                end
+            end
+            self.stdin:close()
+            self.stdout:close()
+            self.stderr:close()
+            self.stdfds = nil
+            self.stdin, self.stdout, self.stderr = nil, nil, nil
+            self.ep = nil
+        end
+
+        return res, err
+    end
 end
 
 --- kill
@@ -128,26 +143,16 @@ function Process:kill(sig)
         end
     end
 
-    if self.pid > 0 then
-        local ok, err = kill(signo, self.pid)
-        if is_error(err, ESRCH) then
-            self.pid = -self.pid
-            err = nil
-        end
-        return ok, err
+    if not self.ep then
+        -- context already closed
+        return false
     end
 
-    -- already exited
-    return false
-end
-
---- waitpid
---- @param ... string
---- @return table|nil res
---- @return any err
---- @return boolean again
-function Process:waitpid(...)
-    return self.ep:waitpid(...)
+    local ok, err = kill(signo, self.pid)
+    if is_error(err, ESRCH) then
+        err = nil
+    end
+    return ok, err
 end
 
 --- wait_readable
