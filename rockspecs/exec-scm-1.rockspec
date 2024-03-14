@@ -11,11 +11,10 @@ description = {
 }
 dependencies = {
     "lua >= 5.1",
-    "lauxhlib >= 0.3.0",
+    "lauxhlib >= 0.6.0",
     "errno >= 0.5.0",
-    "gcfn >= 0.3",
     "gpoll >= 0.9",
-    "signal >= 1.6.1",
+    "signal >= 1.7.0",
     "waitpid >= 0.3.2",
 }
 build = {
