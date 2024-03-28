@@ -38,85 +38,10 @@
 
 typedef struct {
     pid_t pid;
-    FILE *stdin;
-    FILE *stdout;
-    FILE *stderr;
-    int stdin_ref;
-    int stdout_ref;
-    int stderr_ref;
+    int fdin;
+    int fdout;
+    int fderr;
 } exec_pid_t;
-
-static int close_lua(lua_State *L)
-{
-    exec_pid_t *ep = luaL_checkudata(L, 1, EXEC_PID_MT);
-
-    if (ep->stdin) {
-        ep->stdin      = NULL;
-        ep->stdout     = NULL;
-        ep->stderr     = NULL;
-        ep->stdin_ref  = lauxh_unref(L, ep->stdin_ref);
-        ep->stdout_ref = lauxh_unref(L, ep->stdout_ref);
-        ep->stderr_ref = lauxh_unref(L, ep->stderr_ref);
-        ep->pid        = -(ep->pid);
-        lua_pushboolean(L, 1);
-    } else {
-        lua_pushboolean(L, 0);
-    }
-    return 1;
-}
-
-static int getstdio_lua(lua_State *L)
-{
-    exec_pid_t *ep = luaL_checkudata(L, 1, EXEC_PID_MT);
-
-    if (ep->stdin) {
-        lauxh_pushref(L, ep->stdin_ref);
-        lauxh_pushref(L, ep->stdout_ref);
-        lauxh_pushref(L, ep->stderr_ref);
-        lua_createtable(L, 3, 0);
-        lua_pushinteger(L, fileno(ep->stdin));
-        lua_rawseti(L, -2, 0);
-        lua_pushinteger(L, fileno(ep->stdout));
-        lua_rawseti(L, -2, 1);
-        lua_pushinteger(L, fileno(ep->stderr));
-        lua_rawseti(L, -2, 2);
-        return 4;
-    }
-    return 0;
-}
-
-static int getpid_lua(lua_State *L)
-{
-    exec_pid_t *ep = luaL_checkudata(L, 1, EXEC_PID_MT);
-    lua_pushinteger(L, ep->pid);
-    return 1;
-}
-
-static int tostring_lua(lua_State *L)
-{
-    exec_pid_t *ep = luaL_checkudata(L, 1, EXEC_PID_MT);
-    lua_pushfstring(L, EXEC_PID_MT ": %p", ep);
-    return 1;
-}
-
-static int gc_lua(lua_State *L)
-{
-    exec_pid_t *ep = luaL_checkudata(L, 1, EXEC_PID_MT);
-
-    if (ep->stdin) {
-        // kill associated process
-        if (waitpid(ep->pid, NULL, WNOHANG | WUNTRACED) == 0 &&
-            kill(ep->pid, SIGKILL) == 0) {
-            waitpid(ep->pid, NULL, 0);
-        }
-        // release file descriptor reference
-        lauxh_unref(L, ep->stdin_ref);
-        lauxh_unref(L, ep->stdout_ref);
-        lauxh_unref(L, ep->stderr_ref);
-    }
-
-    return 0;
-}
 
 static void stdpipe_close(int fds[6])
 {
@@ -211,28 +136,7 @@ static void do_exec(int fds[6], int search, const char *path, char **argv,
     }
 }
 
-static inline FILE *fd2file(lua_State *L, int fd, const char *mode, int bufmode)
-{
-    FILE *fp = NULL;
-
-    errno = 0;
-    fd    = dup(fd);
-    if (fd == -1) {
-        // failed to duplicate a fd
-        return NULL;
-    }
-
-    fp = lauxh_tofile(L, fd, mode, NULL);
-    if (fp == NULL) {
-        close(fd);
-        return NULL;
-    }
-    setvbuf(fp, NULL, bufmode, 0);
-
-    return fp;
-}
-
-static int stdpipe_create(lua_State *L, exec_pid_t *ep, int fds[6])
+static int stdpipe_create(exec_pid_t *ep, int fds[6])
 {
     int fd[6]        = {0};
     int *stdin_rdwr  = fd;
@@ -264,37 +168,28 @@ static int stdpipe_create(lua_State *L, exec_pid_t *ep, int fds[6])
         return -1;
     }
 
-    // create stdin, stdout and stderr FILE streams
-    if (!(ep->stdin = fd2file(L, stdin_rdwr[1], "w", _IONBF)) ||
-        !(ep->stdout = fd2file(L, stdout_rdwr[0], "r", _IOLBF)) ||
-        !(ep->stderr = fd2file(L, stderr_rdwr[0], "r", _IONBF))) {
-        stdpipe_close(fds);
-        return -1;
-    }
-    // retain file descriptor reference
-    ep->stderr_ref = lauxh_ref(L);
-    ep->stdout_ref = lauxh_ref(L);
-    ep->stdin_ref  = lauxh_ref(L);
-
+    ep->fdin  = stdin_rdwr[1];
+    ep->fdout = stdout_rdwr[0];
+    ep->fderr = stderr_rdwr[0];
     return 0;
 }
 
 static int exec(lua_State *L, int search, const char *path, char **argv,
                 char **envp, const char *pwd)
 {
-    exec_pid_t *ep = lua_newuserdata(L, sizeof(exec_pid_t));
-    int fds[6]     = {0};
+    exec_pid_t ep = {};
+    int fds[6]    = {0};
 
     // create io/pipe
-    if (stdpipe_create(L, ep, fds) == -1) {
+    if (stdpipe_create(&ep, fds) == -1) {
         lua_pushnil(L);
         lua_errno_new(L, errno, "stdpipe_create");
         return 2;
     }
 
     // create child process
-    ep->pid = fork();
-    switch (ep->pid) {
+    ep.pid = fork();
+    switch (ep.pid) {
     case 0:
         do_exec(fds, search, path, argv, envp, pwd);
         _exit(errno);
@@ -311,7 +206,11 @@ static int exec(lua_State *L, int search, const char *path, char **argv,
         close(fds[3]);
         close(fds[4]);
         close(fds[5]);
-        lauxh_setmetatable(L, EXEC_PID_MT);
+        lua_createtable(L, 0, 4);
+        lauxh_pushint2tbl(L, "pid", ep.pid);
+        lauxh_pushint2tbl(L, "stdin", ep.fdin);
+        lauxh_pushint2tbl(L, "stdout", ep.fdout);
+        lauxh_pushint2tbl(L, "stderr", ep.fderr);
         return 1;
     }
 }
@@ -447,37 +346,7 @@ static int exec_lua(lua_State *L)
 
 LUALIB_API int luaopen_exec_syscall(lua_State *L)
 {
-    // create metatable
-    if (luaL_newmetatable(L, EXEC_PID_MT)) {
-        struct luaL_Reg mmethod[] = {
-            {"__gc",       gc_lua      },
-            {"__tostring", tostring_lua},
-            {NULL,         NULL        }
-        };
-        struct luaL_Reg method[] = {
-            {"getpid",   getpid_lua  },
-            {"getstdio", getstdio_lua},
-            {"close",    close_lua   },
-            {NULL,       NULL        }
-        };
-
-        // metamethods
-        for (struct luaL_Reg *ptr = mmethod; ptr->name; ptr++) {
-            lua_pushcfunction(L, ptr->func);
-            lua_setfield(L, -2, ptr->name);
-        }
-        // methods
-        lua_newtable(L);
-        for (struct luaL_Reg *ptr = method; ptr->name; ptr++) {
-            lua_pushcfunction(L, ptr->func);
-            lua_setfield(L, -2, ptr->name);
-        }
-        lua_setfield(L, -2, "__index");
-        lua_pop(L, 1);
-    }
-
     lua_errno_loadlib(L);
-    // export functions
     lua_pushcfunction(L, exec_lua);
     return 1;
 }
