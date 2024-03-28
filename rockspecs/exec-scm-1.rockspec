@@ -14,7 +14,10 @@ dependencies = {
     "lauxhlib >= 0.6.0",
     "errno >= 0.5.0",
     "gpoll >= 0.9",
-    "signal >= 1.7.0",
+    "io-close >= 0.1.0",
+    "io-reader >= 0.3.0",
+    "io-writer >= 0.3.0",
+    "signal >= 1.8.0",
     "waitpid >= 0.3.2",
 }
 build = {

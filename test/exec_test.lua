@@ -19,15 +19,8 @@ function testcase.execl()
     local p = assert(exec.execl('./example.sh', 'hello', 'execl'))
     assert.match(p, '^exec.process: ', false)
 
-    -- test that non-blocking read output of command
-    local res, err, errnum = p.stdout:read('*a')
-    assert.is_nil(res)
-    assert.match(err, 'unavailable')
-    assert.equal(errnum, errno.EAGAIN.code)
-
-    -- test that read output of command
-    local stdout = assert(p:wait_readable())
-    assert.equal(assert(stdout:read()), 'hello execl')
+    -- test that read stdout of command
+    assert.equal(assert(p.stdout:read()), 'hello execl')
 end
 
 function testcase.execlp()
@@ -39,8 +32,7 @@ function testcase.execlp()
 
     -- test that exec command
     local p = assert(exec.execlp('example.sh', 'hello', 'execlp'))
-    local stdout = assert(p:wait_readable())
-    assert.equal(assert(stdout:read()), 'hello execlp')
+    assert.equal(assert(p.stdout:read()), 'hello execlp')
 end
 
 function testcase.execle()
@@ -48,8 +40,7 @@ function testcase.execle()
     local p = assert(exec.execle('./example.sh', {
         TEST_ENV = 'HELLO_TEST_ENV',
     }, 'hello', 'execle'))
-    local stdout = assert(p:wait_readable())
-    assert.equal(assert(stdout:read()), 'hello execle HELLO_TEST_ENV')
+    assert.equal(assert(p.stdout:read()), 'hello execle HELLO_TEST_ENV')
 end
 
 function testcase.execv()
@@ -58,8 +49,7 @@ function testcase.execv()
         'hello',
         'execv',
     }))
-    local stdout = assert(p:wait_readable())
-    assert.equal(assert(stdout:read()), 'hello execv')
+    assert.equal(assert(p.stdout:read()), 'hello execv')
 end
 
 function testcase.execve()
@@ -70,8 +60,7 @@ function testcase.execve()
     }, {
         TEST_ENV = 'HELLO_TEST_ENV',
     }))
-    local stdout = assert(p:wait_readable())
-    assert.equal(assert(stdout:read()), 'hello execve HELLO_TEST_ENV')
+    assert.equal(assert(p.stdout:read()), 'hello execve HELLO_TEST_ENV')
 end
 
 function testcase.execvp()
@@ -86,8 +75,7 @@ function testcase.execvp()
         'hello',
         'execvp',
     }))
-    local stdout = assert(p:wait_readable())
-    assert.equal(assert(stdout:read()), 'hello execvp')
+    assert.equal(assert(p.stdout:read()), 'hello execvp')
 end
 
 function testcase.close()
@@ -176,7 +164,7 @@ function testcase.wait_readable()
     }
     while next(files) do
         local f, err, timeout, hup = p:wait_readable()
-        assert.match(f, '^file ', false)
+        assert.match(f, '^io.reader: ', false)
         assert.is_nil(err)
         assert.is_nil(timeout)
         assert(files[f])
@@ -215,14 +203,12 @@ function testcase.wait_writable()
 
     -- test that write message to stdin
     do
-        local f, err, timeout, hup = p:wait_writable()
-        assert.match(f, '^file ', false)
+        local f, err, timeout = p:wait_writable()
         assert.is_nil(err)
         assert.is_nil(timeout)
-        assert.is_nil(hup)
+        assert.match(f, '^io.writer: ', false)
         assert.equal(f, p.stdin)
-        assert(f:write('message1 from stdin\n'))
-        assert(f:write('message2 from stdin\n'))
+        assert(p.stdin:write('message1 from stdin\n', 'message2 from stdin\n'))
     end
 
     -- test that wait readable file
@@ -243,7 +229,7 @@ function testcase.wait_writable()
     }
     while next(files) do
         local f, err, timeout, hup = p:wait_readable()
-        assert.match(f, '^file ', false)
+        assert.match(f, '^io.reader: ', false)
         assert.is_nil(err)
         assert.is_nil(timeout)
         assert(files[f])
@@ -268,7 +254,7 @@ function testcase.wait_writable()
     end
     assert.is_nil(next(compare))
 
-    -- test that failed to write to stdin after child process is terminated
+    -- test that return nil after child process is terminated
     do
         local f, err, timeout = p:wait_writable()
         assert.equal(f, p.stdin)
@@ -276,9 +262,11 @@ function testcase.wait_writable()
         assert.is_nil(timeout)
         assert.equal(f, p.stdin)
 
-        local _
-        _, err = f:write('message from stdin\n')
-        assert.match(err, errno.EPIPE.message)
+        local n
+        n, err, timeout = f:write('message from stdin\n')
+        assert.is_nil(err)
+        assert.is_nil(timeout)
+        assert.is_nil(n)
     end
 
     -- test that return result value

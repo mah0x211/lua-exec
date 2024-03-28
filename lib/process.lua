@@ -21,12 +21,16 @@
 --
 local pairs = pairs
 local find = string.find
+local type = type
 local wait_readable = require('gpoll').wait_readable
 local wait_writable = require('gpoll').wait_writable
 local unwait_readable = require('gpoll').unwait_readable
 local unwait_writable = require('gpoll').unwait_writable
 local is_error = require('error.is')
 local waitpid = require('waitpid')
+local new_reader = require('io.reader').new
+local new_writer = require('io.writer').new
+local close = require('io.close')
 local signal = require('signal')
 local kill = signal.kill
 --- constants
@@ -40,53 +44,68 @@ for k, v in pairs(signal) do
     end
 end
 
---- @class exec.pid
---- @field getpid fun(self:exec.pid):(integer)
---- @field getstdio fun(self:exec.pid):(in:file*?, out:file*?, err:file*?, fds:integer[]?)
---- @field close fun(self:exec.pid)
---- @field kill fun(self:exec.pid, sig:number?):(ok:boolean, err:any)
---- @field waitpid fun(self:exec.pid, ...:string):(res:table|nil, err:any, again:boolean)
+--- @class exec.result
+--- @field pid integer
+--- @field stdin integer
+--- @field stdout integer
+--- @field stderr integer
+
+--- @class io.writer
+--- @field getfd fun(self:io.writer):(fd:integer)
+--- @field close fun(self:io.writer):(ok:boolean, err:any)
+--- @field write fun(self:io.writer, data:string, ...):(n:integer, err:any)
+
+--- @class io.reader
+--- @field getfd fun(self:io.reader):(fd:integer)
+--- @field close fun(self:io.reader):(ok:boolean, err:any)
+--- @field read fun(self:io.reader, fmt?:integer|string):(data:string, err:any)
 
 --- @class exec.process
---- @field private ep exec.pid
---- @field pid integer?
---- @field stdin file*?
---- @field stdout file*?
---- @field stderr file*?
+--- @field pid integer
+--- @field stdin io.writer?
+--- @field stdout io.reader?
+--- @field stderr io.reader?
 --- @field private stdfds integer[]
 local Process = {}
 
 --- init
---- @param ep exec.pid
+--- @param result exec.result
 --- @return exec.process
-function Process:init(ep)
-    self.ep = ep
-    self.pid = ep:getpid()
-    self.stdin, self.stdout, self.stderr, self.stdfds = ep:getstdio()
-    return self
-end
-
---- do_waitpid_and_kill if waitpid returns again=true, then send a specified
---- signal to the process and wait again.
---- @param pid integer
---- @param sec? number
---- @param ... string|integer signal names or numbers
---- @return table? res
 --- @return any err
---- @return boolean? again
-local function do_waitpid_and_kill(pid, sec, ...)
-    local signals = {
-        ...,
-    }
-    local nsig = select('#', ...)
-    for i = 0, nsig do
-        local sig = signals[i + 1]
-        local res, err, again = waitpid(pid, sec)
-        if not again or not sig then
-            return res, err
+function Process:init(result)
+    local stdfds = {}
+    local err
+
+    -- wrap stdio file descriptors with io.reader/io.writer
+    for i, k in ipairs({
+        'stdin',
+        'stdout',
+        'stderr',
+    }) do
+        local fd = result[k]
+        if not err then
+            local f
+            if k == 'stdin' then
+                f, err = new_writer(fd)
+            else
+                f, err = new_reader(fd)
+            end
+
+            if not err then
+                self[k] = f
+                stdfds[i - 1] = f:getfd()
+            end
         end
-        kill(sig, pid)
+        close(fd)
     end
+
+    if err then
+        return nil, err
+    end
+
+    self.pid = result.pid
+    self.stdfds = stdfds
+    return self
 end
 
 --- close
@@ -97,33 +116,34 @@ function Process:close(sec)
     assert(sec == nil or type(sec) == 'number', 'sec must be number')
 
     -- close and release stdio references
-    if self.ep then
-        local pid = self.ep:getpid()
-        local res, err
-        if pid > 0 then
-            -- wait process termination
-            res, err = do_waitpid_and_kill(pid, sec, signal.SIGTERM,
-                                           signal.SIGKILL)
-        end
+    if self.pid > 0 then
+        unwait_writable(self.stdin:getfd())
+        unwait_readable(self.stdout:getfd())
+        unwait_readable(self.stderr:getfd())
+        self.stdin:close()
+        self.stdout:close()
+        self.stderr:close()
+        self.stdin, self.stdout, self.stderr = nil, nil, nil
+
+        local pid = self.pid
         self.pid = -pid
 
-        if self.ep:close() then
-            for i, fd in pairs(self.stdfds) do
-                if i == 0 then
-                    unwait_writable(fd)
-                else
-                    unwait_readable(fd)
-                end
-            end
-            self.stdin:close()
-            self.stdout:close()
-            self.stderr:close()
-            self.stdfds = nil
-            self.stdin, self.stdout, self.stderr = nil, nil, nil
-            self.ep = nil
+        -- wait process termination
+        local res, err, again = waitpid(pid, sec)
+        if not again then
+            return res, err
         end
 
-        return res, err
+        -- kill the process with SIGTERM and wait again
+        kill(signal.SIGTERM, pid)
+        res, err, again = waitpid(pid, sec)
+        if not again then
+            return res, err
+        end
+
+        -- kill the process with SIGKILL and wait again
+        kill(signal.SIGKILL, pid)
+        return waitpid(pid)
     end
 end
 
@@ -143,7 +163,7 @@ function Process:kill(sig)
         end
     end
 
-    if not self.ep then
+    if self.pid < 0 then
         -- context already closed
         return false
     end
@@ -157,7 +177,7 @@ end
 
 --- wait_readable
 --- @param sec number?
---- @return file*? f
+--- @return io.reader? r
 --- @return any err
 --- @return boolean? timeout
 --- @return boolean? hup
@@ -179,7 +199,7 @@ end
 
 --- wait_writable
 --- @param sec number?
---- @return file*? f
+--- @return io.writer? w
 --- @return any err
 --- @return boolean? timeout
 --- @return boolean? hup

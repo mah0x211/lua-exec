@@ -126,13 +126,16 @@ the `exec.exec*` function returns a process object `exec.process` if the child p
 this object contains the following fields;
 
 - `pid:integer`: process id.
-- `stdin:file*`: write-only file for stdin. (line-buffered)
-- `stdout:file*`: read-only file for stdout. (line-buffered)
-- `stdout:file*`: read-only file for stderr. (non-buffered)
+- `stdin:io.writer`: io.writer for stdin.
+- `stdout:io.reader`: io.reader for stdout.
+- `stdout:io.reader`: io.reader for stderr.
 
-the above files (`stdin`, `stdout` and `stderr`) operates in `non-blocking` mode. if you want to process synchronously, use the `wait_readable` and `wait_writable` methods.
+please see the following URLs to more information about the `io.writer` and `io.reader` interfaces.
 
-it also has the following methods;
+- https://github.com/mah0x211/lua-io-writer
+- https://github.com/mah0x211/lua-io-reader
+
+the above fields (`stdin`, `stdout` and `stderr`) operates in `non-blocking` mode. if you want to process synchronously, use the `wait_readable` and `wait_writable` methods.
 
 
 ## ok, err = process:close()
@@ -186,8 +189,7 @@ print(dump(p:waitpid()))
 ```
 
 
-
-## fp, err, timeout, hup = process:wait_readable( [sec] )
+## r, err, timeout, hup = process:wait_readable( [sec] )
 
 waits until the process `stdout` or `stderr` becomes readable.
 
@@ -201,7 +203,7 @@ this behavior is depends on the https://github.com/mah0x211/lua-gpoll module.
 
 **Returns**
 
-- `fp:io.file`: file object of `stdout` or `stderr`.
+- `r:io.reader`: io.reader object of `stdout` or `stderr`.
 - `err:any`: error object.
 - `timeout:boolean`: `true` if timeout.
 - `hup:boolean`: `true` if the peer of `stdout` or `stderr` has been closed.
@@ -221,7 +223,7 @@ this behavior is depends on the https://github.com/mah0x211/lua-gpoll module.
 
 **Returns**
 
-- `fp:io.file`: file object of `stdin`.
+- `w:io.writer`: io.writer object of `stdin`.
 - `err:any`: error object.
 - `timeout:boolean`: `true` if timeout.
 - `hup:boolean`: `true` if the peer of `stdin` has been closed.
