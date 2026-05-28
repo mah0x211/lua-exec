@@ -1,3 +1,4 @@
+rockspec_format = "3.0"
 package = "exec"
 version = "scm-1"
 source = {
@@ -11,32 +12,43 @@ description = {
 }
 dependencies = {
     "lua >= 5.1",
-    "lauxhlib >= 0.6.0",
     "errno >= 0.5.0",
+    "error >= 0.15.1",
     "gpoll >= 0.9",
     "io-close >= 0.1.0",
     "io-reader >= 0.3.0",
     "io-writer >= 0.3.0",
+    "lauxhlib >= 0.6.0",
+    "metamodule >= 0.5.0",
     "signal >= 1.8.0",
     "waitpid >= 0.3.2",
 }
+build_dependencies = {
+    "luarocks-build-hooks >= 0.8.0",
+}
 build = {
-    type = 'make',
-    build_variables = {
-        PACKAGE = "exec",
-        LIB_EXTENSION = "$(LIB_EXTENSION)",
-        CFLAGS = "$(CFLAGS)",
-        WARNINGS = "-Wall -Wno-trigraphs -Wmissing-field-initializers -Wreturn-type -Wmissing-braces -Wparentheses -Wno-switch -Wunused-function -Wunused-label -Wunused-parameter -Wunused-variable -Wunused-value -Wuninitialized -Wunknown-pragmas -Wshadow -Wsign-compare",
-        CPPFLAGS = "-I$(LUA_INCDIR)",
-        LDFLAGS = "$(LIBFLAG)",
-        EXEC_COVERAGE = "$(EXEC_COVERAGE)",
+    type = "hooks",
+    before_build = {
+        "$(extra-vars)",
     },
-    install_variables = {
-        PACKAGE = "exec",
-        LIB_EXTENSION = "$(LIB_EXTENSION)",
-        INST_LUADIR = "$(LUADIR)",
-        INST_LIBDIR = "$(LUADIR)/exec/",
-        INST_CLIBDIR = "$(LIBDIR)/exec/",
-        LUA_INCDIR = '$(LUA_INCDIR)',
+    extra_variables = {
+        CFLAGS = "-Wall -Wno-trigraphs -Wmissing-field-initializers -Wreturn-type -Wmissing-braces -Wparentheses -Wno-switch -Wunused-function -Wunused-label -Wunused-parameter -Wunused-variable -Wunused-value -Wuninitialized -Wunknown-pragmas -Wshadow -Wsign-compare",
+    },
+    conditional_variables = {
+        EXEC_COVERAGE = {
+            CFLAGS = "--coverage",
+            LIBFLAG = "--coverage",
+        },
+    },
+    modules = {
+        ["exec"] = "exec.lua",
+        ["exec.process"] = "lib/process.lua",
+        ["exec.syscall"] = {
+            sources = "src/syscall.c",
+            incdirs = {
+                "$(DEP_ERRNO_INCDIR)",
+                "$(DEP_LAUXHLIB_INCDIR)",
+            },
+        },
     },
 }
