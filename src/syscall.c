@@ -20,6 +20,12 @@
  *  DEALINGS IN THE SOFTWARE.
  */
 
+// depend
+#include "lauxhlib.h"
+#include "lua_errno.h"
+// lua
+#include <lauxlib.h>
+// system
 #include <errno.h>
 #include <fcntl.h>
 #include <limits.h>
@@ -31,8 +37,6 @@
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <unistd.h>
-// lua
-#include <lua_errno.h>
 
 #define EXEC_PID_MT "exec.pid"
 
